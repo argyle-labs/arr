@@ -1,0 +1,64 @@
+[package]
+name = "arr"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[lib]
+name = "arr"
+path = "src/lib.rs"
+# `cdylib` is the orca plugin artifact orca's `plugin-loader` `dlopen`s;
+# `rlib` retains the in-crate `#[cfg(test)]` harness + lets the workspace use it
+# as a normal Rust lib.
+crate-type = ["cdylib", "rlib"]
+
+# Single orca cdylib plugin for the whole *arr stack. ONE crate exposing FOUR
+# tool namespaces (sonarr.* / radarr.* / prowlarr.* / lidarr.*) over a shared,
+# crate-internal base library. Typed clients are codegenned by progenitor at
+# build time from the vendored specs under `specs/<flavor>.openapi.json` — see
+# `build.rs`. Drop in a new spec file to enable a new flavor's typed client.
+#
+# Update a spec by overwriting its file, e.g.:
+#   curl http://sonarr.local/api/v3/openapi.json -o specs/sonarr.openapi.json
+
+[dependencies]
+# The SOLE orca dependency. All macro-emitted paths (`#[orca_tool]`,
+# `endpoint_resource!`, dispatch's `register_op!`) resolve through
+# `::plugin_toolkit::*`, and every orca primitive the plugin source touches
+# (serde / serde_json / schemars / clap / anyhow / thiserror / inventory / db /
+# rusqlite / async-trait / dispatch / contract / derive / macro-runtime / http /
+# api_client / address / tokio / reqwest / progenitor runtime) is re-exported by
+# the toolkit + its prelude. The progenitor-generated clients carry bare serde/
+# reqwest/etc. paths that the toolkit's build-time codegen rewrites to
+# `::plugin_toolkit::*`, so none of those are direct deps here.
+#
+# Pinned to the orca rc tag that carries the slice-3b plugin-toolkit surface
+# (openapi codegen path-rewrite + progenitor-runtime re-exports). The committed
+# `[patch]` in `.cargo/config.toml` overrides this to the local in-tree toolkit
+# for development; the git tag is what an external checkout resolves against.
+plugin-toolkit = { git = "https://github.com/scottdkey/orca", tag = "v0.0.8-rc.7" }
+
+# The ONE genuine non-orca dep: `#[export_root_module]` expands to bare
+# `::abi_stable` paths in this crate's root (the cdylib FFI boundary the loader
+# dlopens), so it can't route through the toolkit. Pinned to the orca workspace
+# version (0.11) so the layout hash baked into the cdylib matches what orca's
+# plugin-loader checks at load time.
+abi_stable = "0.11"
+
+[dev-dependencies]
+# Dev-only: the in-crate tests reach `serde_json::json!` for mock bodies through
+# the toolkit, same as the lib. wiremock/tokio/rustls drive the HTTP + auth
+# transport tests. Not runtime deps.
+plugin-toolkit = { git = "https://github.com/scottdkey/orca", tag = "v0.0.8-rc.7" }
+tokio    = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"
+rustls   = "0.23"
+
+[build-dependencies]
+plugin-toolkit-build = { git = "https://github.com/scottdkey/orca", tag = "v0.0.8-rc.7" }
+
+# Match orca's workspace lint floor: discarding a Result/Option via
+# `let _ = ...` was a load-bearing past incident, so keep it a hard error here
+# too — the plugin must stay portable back into the orca workspace.
+[lints.clippy]
+let_underscore_must_use = "deny"
