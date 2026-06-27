@@ -17,7 +17,9 @@
 
 use plugin_toolkit::prelude::*;
 
-use crate::clients::{Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus};
+use crate::clients::{
+    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
+};
 
 #[endpoint_resource(plugin = "lidarr")]
 pub struct LidarrEndpoint {
@@ -38,7 +40,11 @@ async fn make_client(name: &str) -> Result<Client> {
         bail!("lidarr endpoint '{name}' is disabled");
     }
     let base_url = address::resolve_reachable(name, &row.addresses).await?;
-    Ok(Client::new(Config::new(base_url, row.api_key, Flavor::Lidarr)))
+    Ok(Client::new(Config::new(
+        base_url,
+        row.api_key,
+        Flavor::Lidarr,
+    )))
 }
 
 #[derive(
@@ -147,7 +153,10 @@ async fn lidarr_test_indexers(
     _ctx: &ToolCtx,
 ) -> Result<LidarrTestIndexersOutput> {
     let results = crate::clients::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
-    let valid_count = results.iter().filter(|r| r.is_valid.unwrap_or(false)).count();
+    let valid_count = results
+        .iter()
+        .filter(|r| r.is_valid.unwrap_or(false))
+        .count();
     Ok(LidarrTestIndexersOutput {
         tested_count: results.len(),
         valid_count,

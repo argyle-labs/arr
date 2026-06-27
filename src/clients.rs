@@ -273,7 +273,8 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await?;
-        resp.json::<Vec<IndexerTestResult>>().map_err(ArrError::Http)
+        resp.json::<Vec<IndexerTestResult>>()
+            .map_err(ArrError::Http)
     }
 
     fn api_path(&self, tail: &str) -> String {
@@ -338,7 +339,12 @@ macro_rules! flavor {
             non_snake_case
         )]
         pub mod $name {
-            include!(concat!(env!("OUT_DIR"), "/", stringify!($name), "_codegen.rs"));
+            include!(concat!(
+                env!("OUT_DIR"),
+                "/",
+                stringify!($name),
+                "_codegen.rs"
+            ));
         }
     };
 }

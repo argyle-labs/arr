@@ -42,7 +42,11 @@ async fn make_client(name: &str) -> Result<Client> {
         bail!("prowlarr endpoint '{name}' is disabled");
     }
     let base_url = address::resolve_reachable(name, &row.addresses).await?;
-    Ok(Client::new(Config::new(base_url, row.api_key, Flavor::Prowlarr)))
+    Ok(Client::new(Config::new(
+        base_url,
+        row.api_key,
+        Flavor::Prowlarr,
+    )))
 }
 
 #[derive(
@@ -191,7 +195,10 @@ async fn prowlarr_test_indexers(
     _ctx: &ToolCtx,
 ) -> Result<ProwlarrTestIndexersOutput> {
     let results = crate::clients::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
-    let valid_count = results.iter().filter(|r| r.is_valid.unwrap_or(false)).count();
+    let valid_count = results
+        .iter()
+        .filter(|r| r.is_valid.unwrap_or(false))
+        .count();
     Ok(ProwlarrTestIndexersOutput {
         tested_count: results.len(),
         valid_count,
