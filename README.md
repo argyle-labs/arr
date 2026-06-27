@@ -1,6 +1,6 @@
 # arr
 
-A single [orca](https://github.com/scottdkey/orca) plugin for the whole **\*arr
+A single [orca](https://github.com/argyle-labs/orca) plugin for the whole **\*arr
 stack** — Sonarr, Radarr, Prowlarr, and Lidarr — in **one cdylib** exposing four
 tool namespaces.
 
