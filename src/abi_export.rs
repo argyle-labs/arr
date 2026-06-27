@@ -1,4 +1,4 @@
-// The tool surface crosses this FFI boundary as opaque JSON — the designated
+// The tool surface crosses this FFI boundary as opaque JSON â the designated
 // JSON dispatch seam, identical to orca's `plugin-loader` and
 // `dispatch::ErasedTool::run_json`. The payload type is aliased (`sj`) at this
 // one seam, exactly as the loader aliases it, and the workspace
@@ -11,11 +11,11 @@
 //! `plugin-loader` `dlopen`s. The accessor fns carry the version header the
 //! loader reads before invoking anything.
 //!
-//! This single cdylib bundles FOUR tool namespaces — `sonarr.*`, `radarr.*`,
-//! `prowlarr.*`, `lidarr.*` — over one shared `crate::clients` base library.
+//! This single cdylib bundles FOUR tool namespaces â `sonarr.*`, `radarr.*`,
+//! `prowlarr.*`, `lidarr.*` â over one shared `crate::clients` base library.
 //! `manifest()`/`invoke()` surface the union of those four namespaces, filtered
 //! to exactly those prefixes so the statically-linked toolkit domain inventory
-//! (containers / notifications / …) does not leak host-owned tools across the
+//! (containers / notifications / â¦) does not leak host-owned tools across the
 //! ABI.
 //!
 //! Only the entrypoint + metadata cross as `StableAbi` types; the tool surface
@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 // `#[export_root_module]` expands to bare `::abi_stable` paths in this crate's
-// root, so abi_stable is a direct dep — a genuinely-external (non-orca) crate.
+// root, so abi_stable is a direct dep â a genuinely-external (non-orca) crate.
 // Pinned to the toolkit's version so the layout hash the loader checks matches.
 use abi_stable::export_root_module;
 use abi_stable::prefix_type::PrefixTypeTrait;
@@ -43,7 +43,7 @@ extern "C" fn plugin_semver() -> RString {
 }
 
 extern "C" fn target_software() -> RString {
-    // One cdylib serving the whole *arr stack — sonarr/radarr/prowlarr/lidarr.
+    // One cdylib serving the whole *arr stack â sonarr/radarr/prowlarr/lidarr.
     RString::from("arr")
 }
 
@@ -57,9 +57,9 @@ extern "C" fn orca_compat() -> RString {
     RString::from(">=0.0.8, <0.1.0")
 }
 
-/// Tool-name prefixes this plugin owns — one per bundled flavor. The cdylib
+/// Tool-name prefixes this plugin owns â one per bundled flavor. The cdylib
 /// statically links the toolkit's domain crates (containers / notifications /
-/// …), each carrying its own `#[orca_tool]` inventory entries, so the raw
+/// â¦), each carrying its own `#[orca_tool]` inventory entries, so the raw
 /// `tool_manifest_json()` walk returns those host-owned tools alongside the
 /// plugin's. The plugin exposes only its own four namespaces across the ABI.
 const TOOL_PREFIXES: [&str; 4] = ["sonarr.", "radarr.", "prowlarr.", "lidarr."];
@@ -163,6 +163,14 @@ mod manifest_tests {
     }
 }
 
+/// Domain backends this plugin contributes. Pure tool-surface plugin (no
+/// storage/etc. backend), so it contributes none — an empty array, identical to
+/// what the toolkit per-field default would synthesize for a plugin that predates
+/// the `backends` ABI field.
+extern "C" fn backends() -> RString {
+    RString::from("[]")
+}
+
 #[export_root_module]
 fn export() -> PluginModRef {
     PluginMod {
@@ -172,6 +180,7 @@ fn export() -> PluginModRef {
         orca_compat,
         manifest,
         invoke,
+        backends,
     }
     .leak_into_prefix()
 }
