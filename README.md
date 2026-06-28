@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon-256.png" width="120" alt="arr" />
+</p>
+
 # arr
 
 A single [orca](https://github.com/argyle-labs/orca) plugin for the whole **\*arr
