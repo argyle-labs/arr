@@ -2,7 +2,11 @@
 name = "arr"
 version = "0.1.0"
 edition = "2021"
+description = "The *arr stack — Sonarr, Radarr, Prowlarr, Lidarr — in one orca cdylib"
 build = "build.rs"
+
+[package.metadata.orca]
+category = "downloads"
 
 [lib]
 name = "arr"
