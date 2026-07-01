@@ -106,3 +106,15 @@ This repo ships the orca **plugin** only — there are no install/update/backup
 deploy assets here yet (no Dockerfile/compose/lxc). If lifecycle automation is
 wanted later, add a `lifecycle.rs` exposing install/update/backup as
 `#[orca_tool]`s, mirroring the jellyfin/plex repos.
+
+## Manual setup & management
+
+This plugin automates setup, but the repo is self-contained: the docs below (migrated + anonymized from the homelab runbook) let you deploy, configure, and operate arr **entirely by hand** across every supported runtime. The plugin just makes it easier.
+
+- [bazarr](docs/bazarr.md)
+- [kapowarr](docs/kapowarr.md)
+- [lidarr](docs/lidarr.md)
+- [prowlarr](docs/prowlarr.md)
+- [radarr-4k](docs/radarr-4k.md)
+- [radarr](docs/radarr.md)
+- [sonarr](docs/sonarr.md)
