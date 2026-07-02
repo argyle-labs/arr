@@ -14,7 +14,11 @@ arr is multi-service — deploy it **by hand, without orca** from the upstream c
 
 ## Run it without orca
 
-Follow the upstream install (which provides the official multi-container `docker-compose`): <https://wiki.servarr.com/>.
+Follow the upstream install (which provides the official multi-container `docker-compose`, runnable under docker or podman; deployable to an LXC, VM, or Unraid): <https://wiki.servarr.com/>.
+
+### Dependencies
+
+Requires a download client (`qbittorrent`/`sabnzbd`) and indexers (managed via Prowlarr).
 
 
 See [bazarr.md](docs/bazarr.md), [kapowarr.md](docs/kapowarr.md), [lidarr.md](docs/lidarr.md), [prowlarr.md](docs/prowlarr.md), [radarr-4k.md](docs/radarr-4k.md), [radarr.md](docs/radarr.md), [sonarr.md](docs/sonarr.md) for worked operator notes.
