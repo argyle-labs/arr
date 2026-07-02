@@ -137,10 +137,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
-name = "arr"
+name = "arr-base"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "plugin-toolkit",
  "plugin-toolkit-build",
  "rustls",
@@ -1929,6 +1928,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lidarr"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "arr-base",
+ "plugin-toolkit",
+ "tokio",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2753,6 +2762,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prowlarr"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "arr-base",
+ "plugin-toolkit",
+ "tokio",
+]
+
+[[package]]
 name = "psl-types"
 version = "2.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2788,6 +2807,16 @@ name = "r-efi"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
+
+[[package]]
+name = "radarr"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "arr-base",
+ "plugin-toolkit",
+ "tokio",
+]
 
 [[package]]
 name = "rand"
@@ -2865,6 +2894,16 @@ dependencies = [
  "time",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "readarr"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "arr-base",
+ "plugin-toolkit",
+ "tokio",
 ]
 
 [[package]]
@@ -3575,6 +3614,16 @@ checksum = "52d1cfed4120b4d927bf7c0f86d2087a4a7d6027c906d9f9d525a80573b9be51"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "sonarr"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "arr-base",
+ "plugin-toolkit",
+ "tokio",
 ]
 
 [[package]]

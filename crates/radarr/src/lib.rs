@@ -1,5 +1,5 @@
 //! Radarr tool surface — `radarr.*`. Thin wrappers over the shared
-//! `crate::clients` base library.
+//! `arr_base` base library.
 //!
 //! Tool surface (one-tool-per-resource):
 //!
@@ -15,11 +15,11 @@
 //! Imports flow through `plugin_toolkit::prelude::*` only.
 #![allow(clippy::disallowed_types)]
 
+pub mod abi_export;
+
 use plugin_toolkit::prelude::*;
 
-use crate::clients::{
-    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
-};
+use arr_base::{Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus};
 
 #[endpoint_resource(plugin = "radarr")]
 pub struct RadarrEndpoint {
@@ -77,7 +77,7 @@ pub struct RadarrHealthOutput {
 /// **Detection.** Health issues currently raised by a registered Radarr server.
 #[orca_tool(domain = "radarr", verb = "health")]
 async fn radarr_health(args: RadarrHealthArgs, _ctx: &ToolCtx) -> Result<RadarrHealthOutput> {
-    let issues = crate::clients::ops::health(&make_client(&args.endpoint).await?).await?;
+    let issues = arr_base::ops::health(&make_client(&args.endpoint).await?).await?;
     Ok(RadarrHealthOutput {
         issue_count: issues.len(),
         issues,
@@ -112,7 +112,7 @@ pub struct RadarrIndexersOutput {
 /// Configured indexers on a registered Radarr server.
 #[orca_tool(domain = "radarr", verb = "indexers")]
 async fn radarr_indexers(args: RadarrIndexersArgs, _ctx: &ToolCtx) -> Result<RadarrIndexersOutput> {
-    let indexers = crate::clients::ops::indexers(&make_client(&args.endpoint).await?).await?;
+    let indexers = arr_base::ops::indexers(&make_client(&args.endpoint).await?).await?;
     Ok(RadarrIndexersOutput { indexers })
 }
 
@@ -152,7 +152,7 @@ async fn radarr_test_indexers(
     args: RadarrTestIndexersArgs,
     _ctx: &ToolCtx,
 ) -> Result<RadarrTestIndexersOutput> {
-    let results = crate::clients::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
+    let results = arr_base::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
     let valid_count = results
         .iter()
         .filter(|r| r.is_valid.unwrap_or(false))
@@ -183,7 +183,7 @@ async fn radarr_system_status(
     args: RadarrSystemStatusArgs,
     _ctx: &ToolCtx,
 ) -> Result<SystemStatus> {
-    Ok(crate::clients::ops::system_status(&make_client(&args.endpoint).await?).await?)
+    Ok(arr_base::ops::system_status(&make_client(&args.endpoint).await?).await?)
 }
 
 // TODO: radarr.add_movie — Radarr-specific media tool over `/api/v3/movie`.

@@ -1,0 +1,30 @@
+[package]
+name = "arr-base"
+version.workspace = true
+edition.workspace = true
+description = "Shared Servarr transport + typed clients for the *arr orca plugins"
+build = "build.rs"
+
+[lib]
+name = "arr_base"
+path = "src/lib.rs"
+
+# arr-base is the crate-internal base library the per-app cdylib plugins
+# (sonarr/radarr/prowlarr/lidarr/readarr) depend on. It is NOT a cdylib and
+# carries no abi_stable FFI export — just the hand-written `Client` transport,
+# result types, `ops`, and the progenitor `flavor!` clients codegenned at build
+# time from `specs/<app>.openapi.json` (see `build.rs`).
+[dependencies]
+plugin-toolkit.workspace = true
+
+[build-dependencies]
+plugin-toolkit-build.workspace = true
+
+[dev-dependencies]
+plugin-toolkit.workspace = true
+tokio.workspace = true
+wiremock.workspace = true
+rustls.workspace = true
+
+[lints]
+workspace = true
