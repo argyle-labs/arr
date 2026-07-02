@@ -13,6 +13,14 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+# Also the org-index description read by `labs profile` (this repo is a workspace,
+# not a single package, so its index metadata lives at the workspace level).
+description = "The *arr stack — Sonarr, Radarr, Prowlarr, Lidarr, Readarr as individual orca plugins"
+
+# Org-index category for `labs profile`. A workspace has no [package], so the
+# generator reads [workspace.metadata.orca] here instead of [package.metadata.orca].
+[workspace.metadata.orca]
+category = "downloads"
 
 [workspace.dependencies]
 # The SOLE orca dependency shared by every crate. All macro-emitted paths
