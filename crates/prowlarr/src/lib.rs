@@ -1,5 +1,5 @@
 //! Prowlarr tool surface — `prowlarr.*`. Thin wrappers over the shared
-//! `crate::clients` base library.
+//! `arr_base` base library.
 //!
 //! Prowlarr is the indexer-manager of the *arr stack: it speaks `/api/v1`
 //! (not `/api/v3` like sonarr/radarr) and is the only flavor exposing
@@ -17,9 +17,11 @@
 //! Imports flow through `plugin_toolkit::prelude::*` only.
 #![allow(clippy::disallowed_types)]
 
+pub mod abi_export;
+
 use plugin_toolkit::prelude::*;
 
-use crate::clients::{
+use arr_base::{
     Client, Config, Flavor, HealthIssue, Indexer, IndexerStatus, IndexerTestResult, SystemStatus,
 };
 
@@ -79,7 +81,7 @@ pub struct ProwlarrHealthOutput {
 /// **Detection.** Health issues currently raised by a registered Prowlarr server.
 #[orca_tool(domain = "prowlarr", verb = "health")]
 async fn prowlarr_health(args: ProwlarrHealthArgs, _ctx: &ToolCtx) -> Result<ProwlarrHealthOutput> {
-    let issues = crate::clients::ops::health(&make_client(&args.endpoint).await?).await?;
+    let issues = arr_base::ops::health(&make_client(&args.endpoint).await?).await?;
     Ok(ProwlarrHealthOutput {
         issue_count: issues.len(),
         issues,
@@ -117,7 +119,7 @@ async fn prowlarr_indexers(
     args: ProwlarrIndexersArgs,
     _ctx: &ToolCtx,
 ) -> Result<ProwlarrIndexersOutput> {
-    let indexers = crate::clients::ops::indexers(&make_client(&args.endpoint).await?).await?;
+    let indexers = arr_base::ops::indexers(&make_client(&args.endpoint).await?).await?;
     Ok(ProwlarrIndexersOutput { indexers })
 }
 
@@ -154,7 +156,7 @@ async fn prowlarr_indexer_status(
     args: ProwlarrIndexerStatusArgs,
     _ctx: &ToolCtx,
 ) -> Result<ProwlarrIndexerStatusOutput> {
-    let status = crate::clients::ops::indexer_status(&make_client(&args.endpoint).await?).await?;
+    let status = arr_base::ops::indexer_status(&make_client(&args.endpoint).await?).await?;
     Ok(ProwlarrIndexerStatusOutput { status })
 }
 
@@ -194,7 +196,7 @@ async fn prowlarr_test_indexers(
     args: ProwlarrTestIndexersArgs,
     _ctx: &ToolCtx,
 ) -> Result<ProwlarrTestIndexersOutput> {
-    let results = crate::clients::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
+    let results = arr_base::ops::test_indexers(&make_client(&args.endpoint).await?).await?;
     let valid_count = results
         .iter()
         .filter(|r| r.is_valid.unwrap_or(false))
@@ -225,7 +227,7 @@ async fn prowlarr_system_status(
     args: ProwlarrSystemStatusArgs,
     _ctx: &ToolCtx,
 ) -> Result<SystemStatus> {
-    Ok(crate::clients::ops::system_status(&make_client(&args.endpoint).await?).await?)
+    Ok(arr_base::ops::system_status(&make_client(&args.endpoint).await?).await?)
 }
 
 // TODO: prowlarr.add_indexer — add an indexer over `/api/v1/indexer`.

@@ -1,0 +1,30 @@
+[package]
+name = "prowlarr"
+version.workspace = true
+edition.workspace = true
+description = "Prowlarr — indexer manager for the *arr apps (orca cdylib plugin)"
+
+[package.metadata.orca]
+category = "downloads"
+
+[lib]
+name = "prowlarr"
+path = "src/lib.rs"
+# cdylib = the orca plugin artifact the loader dlopens; rlib retains the
+# in-crate #[cfg(test)] harness. One independent plugin per *arr app.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+plugin-toolkit.workspace = true
+# The ONE non-orca dep: #[export_root_module] expands to bare ::abi_stable paths
+# at the cdylib FFI boundary; pinned to the toolkit's version (layout-hash match).
+abi_stable.workspace = true
+# Shared Servarr transport + typed clients.
+arr-base.workspace = true
+
+[dev-dependencies]
+plugin-toolkit.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

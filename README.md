@@ -4,45 +4,53 @@
 
 # arr
 
-The *arr stack — Sonarr, Radarr, Prowlarr, Lidarr — automates finding and organizing TV, movies, and music.
+The *arr stack — **one repo, one orca plugin per app**. `arr` is a Cargo
+workspace that builds an independent cdylib plugin for each *arr application;
+orca loads each on its own. Every app sits on the shared [`arr-base`](crates/arr-base)
+crate (the Servarr `X-Api-Key` transport + progenitor-generated typed clients),
+so the ~590-line base stays DRY across all of them.
 
-A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend).
+First-party [orca](https://github.com/argyle-labs/orca) plugins (service-backend).
 
-arr is multi-service — deploy it **by hand, without orca** from the upstream compose:
+## Plugins
 
----
+| | App | Port | Role | Crate |
+|---|-----|------|------|-------|
+| <img src="crates/sonarr/assets/icon-256.png" width="28" /> | **Sonarr** | `8989` | TV series | [crates/sonarr](crates/sonarr) |
+| <img src="crates/radarr/assets/icon-256.png" width="28" /> | **Radarr** | `7878` | Movies (4K: `7879`) | [crates/radarr](crates/radarr) |
+| <img src="crates/prowlarr/assets/icon-256.png" width="28" /> | **Prowlarr** | `9696` | Indexer manager | [crates/prowlarr](crates/prowlarr) |
+| <img src="crates/lidarr/assets/icon-256.png" width="28" /> | **Lidarr** | `8686` | Music | [crates/lidarr](crates/lidarr) |
+| <img src="crates/readarr/assets/icon-256.png" width="28" /> | **Readarr** | `8787` | Books/audiobooks (legacy) | [crates/readarr](crates/readarr) |
+| <img src="assets/bazarr-256.png" width="28" /> | **Bazarr** | `6767` | Subtitles | _coming — own client (not Servarr-shaped)_ |
+
+Each crate is **self-contained**: its own README with standalone deploy /
+backup / restore (run it by hand, without orca), its own operator notes, and its
+own official icon.
 
 ## Run it without orca
 
-Follow the upstream install (which provides the official multi-container `docker-compose`, runnable under docker or podman; deployable to an LXC, VM, or Unraid): <https://wiki.servarr.com/>.
-
-### Dependencies
-
-Requires a download client (`qbittorrent`/`sabnzbd`) and indexers (managed via Prowlarr).
-
-
-See [bazarr.md](docs/bazarr.md), [kapowarr.md](docs/kapowarr.md), [lidarr.md](docs/lidarr.md), [prowlarr.md](docs/prowlarr.md), [radarr-4k.md](docs/radarr-4k.md), [radarr.md](docs/radarr.md), [sonarr.md](docs/sonarr.md) for worked operator notes.
-
-
-### Backup & restore
-
-Back up the config/data volume(s) above — that's the whole service state (stop the container first for a clean copy). Restore by putting them back and starting it.
-
-> With orca this is **`service.backup` / `service.restore`** — location-agnostic (docker / podman / lxc / vm), one command regardless of where arr runs. No per-service backup script.
-
-## With orca
-
-orca drives this plugin through the single generic `service.*` surface — no per-plugin tools:
-
-```sh
-orca service.deploy arr      # render + launch on any supported runtime
-orca service.status arr      # health + rich diagnostics (typed payload)
-orca service.backup arr      # location-agnostic backup (tar; PBS on Proxmox)
-orca service.configure arr   # apply config via the upstream API
-```
+Each app is an independent container. See the per-app README for its compose,
+ports, and backup/restore — start with [`prowlarr`](crates/prowlarr) (add your
+indexers there; it syncs them to the others), then the apps you want. All apps
+share one media library and one downloads folder and use the
+[LinuxServer.io](https://docs.linuxserver.io/) images. Upstream: <https://wiki.servarr.com/>.
 
 ## Layout
 
-- `src/` — the plugin (pure Rust): the `ServiceBackend` descriptor + `configure` / `status`.
-- `docs/` — standalone operator notes.
-- `assets/` — plugin icon.
+```
+arr/  (Cargo workspace)
+  crates/
+    arr-base/   shared Servarr transport + typed clients (rlib)
+    sonarr/     -> libsonarr    (cdylib plugin)
+    radarr/     -> libradarr
+    prowlarr/   -> libprowlarr
+    lidarr/     -> liblidarr
+    readarr/    -> libreadarr
+```
+
+### Adding an *arr app
+
+1. Drop `specs/<app>.openapi.json` into [`arr-base/specs`](crates/arr-base/specs) and add a `flavor!(<app>)` (+ a `Flavor` variant if it uses the shared Servarr `Client`).
+2. Add a `crates/<app>` cdylib crate depending on `arr-base` with its own tool surface + `abi_export` (single `<app>.` namespace).
+
+Apps that aren't Servarr-shaped (e.g. **Bazarr**) bring their own client in `arr-base` rather than reusing the shared `Client`.
