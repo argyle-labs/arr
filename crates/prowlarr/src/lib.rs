@@ -36,14 +36,13 @@ pub struct ProwlarrEndpoint {
 /// first reachable address from the endpoint's fallback list.
 async fn make_client(name: &str) -> Result<Client> {
     let row = {
-        let conn = runtime::open_db()?;
-        endpoint_db::get(&conn, name)?
+        endpoint_db::get(name)?
             .with_context(|| format!("prowlarr endpoint '{name}' not registered"))?
     };
     if !row.enabled {
         bail!("prowlarr endpoint '{name}' is disabled");
     }
-    let base_url = address::resolve_reachable(name, &row.addresses).await?;
+    let base_url = address::resolve_reachable(name, &row.addresses, false).await?;
     Ok(Client::new(Config::new(
         base_url,
         row.api_key,
