@@ -1,0 +1,30 @@
+# Sonarr - TV Show Manager
+# docs: ../../docs/services/sonarr.md
+
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:${SONARR_IMAGE_TAG:-latest}
+    container_name: sonarr
+    environment:
+      - PUID=${PUID:-99}
+      - PGID=${PGID:-100}
+      - TZ=${TZ:-America/Denver}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8989/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${SONARR_CONFIG_PATH:-/opt/appdata/sonarr}:/config
+      - ${DOWNLOADS_PATH:-/mnt/pool/downloads}:/downloads
+      - ${MEDIA_PATH:-/mnt/pool/data/media}:/data/media
+    networks:
+      - media
+    restart: unless-stopped
+
+networks:
+  media:
+    external: true
