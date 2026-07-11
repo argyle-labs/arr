@@ -1,6 +1,6 @@
 //! `arr-base` — shared Servarr transport + typed clients for the *arr plugins.
 //!
-//! This is the base library the per-app cdylib plugin crates
+//! This is the base library the per-app plugin crates (dynamic subprocess bins)
 //! (`sonarr`, `radarr`, `prowlarr`, `lidarr`, `readarr`) depend on as
 //! `arr_base`. It is a plain rlib — no cdylib, no abi_stable FFI export. Each
 //! plugin crate builds its own single-namespace tool surface on top of the
@@ -13,7 +13,7 @@
 //! Adding a new flavor is two steps here in the base:
 //!   1. Drop `specs/<flavor>.openapi.json` into `specs/`.
 //!   2. Add `flavor!(<flavor>);` below (+ a `Flavor` variant if it needs the
-//!      shared `Client`). Then add a sibling `crates/<flavor>` cdylib plugin.
+//!      shared `Client`). Then add a sibling `crates/<flavor>` plugin (a dynamic subprocess bin).
 //!
 //! Generated `Client` types are intentionally per-module
 //! (`arr_base::sonarr::Client`, …) — the *arr forks diverge enough that a

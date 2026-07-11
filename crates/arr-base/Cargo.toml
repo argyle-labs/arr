@@ -9,7 +9,7 @@ build = "build.rs"
 name = "arr_base"
 path = "src/lib.rs"
 
-# arr-base is the crate-internal base library the per-app cdylib plugins
+# arr-base is the crate-internal base library the per-app plugin crates
 # (sonarr/radarr/prowlarr/lidarr/readarr) depend on. It is NOT a cdylib and
 # carries no abi_stable FFI export — just the hand-written `Client` transport,
 # result types, `ops`, and the progenitor `flavor!` clients codegenned at build

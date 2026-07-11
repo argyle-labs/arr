@@ -16,8 +16,6 @@
 //! Imports flow through `plugin_toolkit::prelude::*` only.
 #![allow(clippy::disallowed_types)]
 
-pub mod abi_export;
-
 use plugin_toolkit::prelude::*;
 
 use arr_base::{Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus};
