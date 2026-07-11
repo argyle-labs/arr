@@ -2,7 +2,7 @@
 name = "lidarr"
 version.workspace = true
 edition.workspace = true
-description = "Lidarr — music automation (orca cdylib plugin)"
+description = "Lidarr — music automation (orca plugin)"
 
 [package.metadata.orca]
 category = "downloads"
@@ -10,15 +10,16 @@ category = "downloads"
 [lib]
 name = "lidarr"
 path = "src/lib.rs"
-# cdylib = the orca plugin artifact the loader dlopens; rlib retains the
-# in-crate #[cfg(test)] harness. One independent plugin per *arr app.
-crate-type = ["cdylib", "rlib"]
+# rlib retains the in-crate #[cfg(test)] harness. The plugin artifact is now the
+# [[bin]] below — a dynamic subprocess the loader spawns, not a dlopened cdylib.
+crate-type = ["rlib"]
+
+[[bin]]
+name = "lidarr"
+path = "src/main.rs"
 
 [dependencies]
 plugin-toolkit.workspace = true
-# The ONE non-orca dep: #[export_root_module] expands to bare ::abi_stable paths
-# at the cdylib FFI boundary; pinned to the toolkit's version (layout-hash match).
-abi_stable.workspace = true
 # Shared Servarr transport + typed clients.
 arr-base.workspace = true
 

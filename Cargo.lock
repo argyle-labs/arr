@@ -1625,7 +1625,6 @@ dependencies = [
 name = "lidarr"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "arr-base",
  "plugin-toolkit",
  "tokio",
@@ -2061,7 +2060,6 @@ dependencies = [
  "derive",
  "dispatch",
  "futures-core",
- "futures-executor",
  "futures-util",
  "graphql",
  "graphql_client",
@@ -2213,7 +2211,6 @@ dependencies = [
 name = "prowlarr"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "arr-base",
  "plugin-toolkit",
  "tokio",
@@ -2260,7 +2257,6 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 name = "radarr"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "arr-base",
  "plugin-toolkit",
  "tokio",
@@ -2319,7 +2315,6 @@ dependencies = [
 name = "readarr"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "arr-base",
  "plugin-toolkit",
  "tokio",
@@ -2970,7 +2965,6 @@ dependencies = [
 name = "sonarr"
 version = "0.1.0"
 dependencies = [
- "abi_stable",
  "arr-base",
  "plugin-toolkit",
  "tokio",

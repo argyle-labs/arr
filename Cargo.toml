@@ -1,10 +1,11 @@
-# `arr` is a Cargo WORKSPACE that builds one orca cdylib plugin per *arr
-# application. Each app under `crates/` is loaded independently by orca; they
-# all sit on the shared `arr-base` crate (the Servarr transport + progenitor
-# codegen), so the ~590-line base stays DRY across every flavor.
+# `arr` is a Cargo WORKSPACE that builds one dynamic (subprocess) orca plugin per
+# *arr application. Each app under `crates/` is a `[[bin]]` orca spawns and talks
+# to over the orca socket; they all sit on the shared `arr-base` crate (the
+# Servarr transport + progenitor codegen), so the ~590-line base stays DRY across
+# every flavor.
 #
 # Adding an *arr app: drop its `specs/<app>.openapi.json` into `arr-base`, add a
-# `flavor!(<app>)` + `Flavor` variant there, then add a `crates/<app>` cdylib
+# `flavor!(<app>)` + `Flavor` variant there, then add a `crates/<app>` plugin
 # crate that depends on `arr-base` and exposes its own single-namespace tools.
 [workspace]
 resolver = "2"
@@ -29,10 +30,6 @@ category = "downloads"
 # paths are rewritten to `::plugin_toolkit::*` by the build-time codegen.
 plugin-toolkit = { git = "https://github.com/argyle-labs/orca", branch = "main" }
 plugin-toolkit-build = { git = "https://github.com/argyle-labs/orca", branch = "main" }
-# The ONE genuine non-orca dep, only in the cdylib crates: `#[export_root_module]`
-# expands to bare `::abi_stable` paths at the FFI boundary the loader dlopens.
-# Pinned to the orca workspace version (0.11) so the layout hash matches.
-abi_stable = "0.11"
 # The shared Servarr base (transport + typed clients).
 arr-base = { path = "crates/arr-base" }
 # Dev-only (tests): wiremock/tokio/rustls drive the HTTP + auth transport tests.
