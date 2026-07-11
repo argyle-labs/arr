@@ -1,0 +1,30 @@
+# Radarr - Movie Manager
+# docs: ../../docs/services/radarr.md
+
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:${RADARR_IMAGE_TAG:-latest}
+    container_name: radarr
+    environment:
+      - PUID=${PUID:-99}
+      - PGID=${PGID:-100}
+      - TZ=${TZ:-America/Denver}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7878/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "7878:7878"
+    volumes:
+      - ${RADARR_CONFIG_PATH:-/opt/appdata/radarr}:/config
+      - ${DOWNLOADS_PATH:-/mnt/pool/downloads}:/downloads
+      - ${MEDIA_PATH:-/mnt/pool/data/media}:/data/media
+    networks:
+      - media
+    restart: unless-stopped
+
+networks:
+  media:
+    external: true

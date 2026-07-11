@@ -21,7 +21,6 @@ First-party [orca](https://github.com/argyle-labs/orca) plugins (service-backend
 | <img src="crates/prowlarr/assets/icon-256.png" width="28" /> | **Prowlarr** | `9696` | Indexer manager | [crates/prowlarr](crates/prowlarr) |
 | <img src="crates/lidarr/assets/icon-256.png" width="28" /> | **Lidarr** | `8686` | Music | [crates/lidarr](crates/lidarr) |
 | <img src="crates/readarr/assets/icon-256.png" width="28" /> | **Readarr** | `8787` | Books/audiobooks (legacy) | [crates/readarr](crates/readarr) |
-| <img src="assets/bazarr-256.png" width="28" /> | **Bazarr** | `6767` | Subtitles | _coming — own client (not Servarr-shaped)_ |
 
 Each crate is **self-contained**: its own README with standalone deploy /
 backup / restore (run it by hand, without orca), its own operator notes, and its
@@ -53,4 +52,4 @@ arr/  (Cargo workspace)
 1. Drop `specs/<app>.openapi.json` into [`arr-base/specs`](crates/arr-base/specs) and add a `flavor!(<app>)` (+ a `Flavor` variant if it uses the shared Servarr `Client`).
 2. Add a `crates/<app>` cdylib crate depending on `arr-base` with its own tool surface + `abi_export` (single `<app>.` namespace).
 
-Apps that aren't Servarr-shaped (e.g. **Bazarr**) bring their own client in `arr-base` rather than reusing the shared `Client`.
+Apps that aren't Servarr-shaped live in their own repos rather than this workspace, since they don't share the Servarr `Client` — e.g. [bazarr](https://github.com/argyle-labs/bazarr) and [kapowarr](https://github.com/argyle-labs/kapowarr).
