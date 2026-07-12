@@ -18,17 +18,8 @@
 //! `plugin_toolkit::api_client`. This file holds only the *arr-specific
 //! composition.
 
-use plugin_toolkit::anyhow::{Context, Result};
-use plugin_toolkit::api_client::{ApiClientBuilder, ApiKey, Credentials, LoginSession};
-
-/// Build the `reqwest::Client` the future `*.login` orca tools hand to the
-/// flavor clients. Carries `X-Api-Key: <key>` on every request.
-pub(crate) fn reqwest_client_with_api_key(key: &ApiKey) -> Result<plugin_toolkit::reqwest::Client> {
-    ApiClientBuilder::new()
-        .header("x-api-key", key.expose())
-        .context("api key contains invalid bytes")?
-        .build()
-}
+use plugin_toolkit::anyhow::Result;
+use plugin_toolkit::api_client::{Credentials, LoginSession};
 
 /// Post `Credentials` to `<base_url>/login` as `multipart/form-data` — the
 /// exact wire format the *arr web UIs use.
@@ -47,20 +38,6 @@ mod tests {
 
     fn install_crypto() {
         _ = rustls::crypto::ring::default_provider().install_default();
-    }
-
-    #[test]
-    fn reqwest_client_with_api_key_builds_for_ascii_key() {
-        install_crypto();
-        let k = ApiKey::new("abc-123".into());
-        assert!(reqwest_client_with_api_key(&k).is_ok());
-    }
-
-    #[test]
-    fn reqwest_client_with_api_key_rejects_invalid_header_bytes() {
-        let k = ApiKey::new("bad\nkey".into());
-        let err = reqwest_client_with_api_key(&k).unwrap_err();
-        assert!(err.to_string().contains("api key"));
     }
 
     #[tokio::test]
