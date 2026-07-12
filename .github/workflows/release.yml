@@ -1,10 +1,9 @@
 name: Release
 
-# Thin caller for the `arr` workspace: one plugin binary per *arr app. The whole
-# release flow lives ONCE in the org reusable argyle-labs/.github →
-# .github/workflows/plugin-release.yml. This repo forwards the manual dispatch
-# inputs and names every workspace bin to build + publish. See that file for
-# version math + artifact staging (plugin binary + sha256, built against orca `main`).
+# Thin caller: the whole release flow lives ONCE in the org reusable
+# argyle-labs/.github → .github/workflows/plugin-release.yml. This repo just
+# forwards the manual dispatch inputs. See that file for version math + artifact
+# staging (plugin binary + sha256, built against orca `main`).
 #   Actions → Release → Run workflow → channel (rc | stable) + bump.
 
 on:
@@ -38,4 +37,3 @@ jobs:
       channel: ${{ inputs.channel }}
       bump: ${{ inputs.bump }}
       notes: ${{ inputs.notes }}
-      bins: '["lidarr", "prowlarr", "radarr", "readarr", "sonarr"]'
