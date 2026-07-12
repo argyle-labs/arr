@@ -5,8 +5,8 @@
 # arr
 
 The *arr stack — **one repo, one orca plugin per app**. `arr` is a Cargo
-workspace that builds an independent cdylib plugin for each *arr application;
-orca loads each on its own. Every app sits on the shared [`arr-base`](crates/arr-base)
+workspace that builds an independent subprocess plugin for each *arr application;
+orca spawns each on its own over the plugin socket. Every app sits on the shared [`arr-base`](crates/arr-base)
 crate (the Servarr `X-Api-Key` transport + progenitor-generated typed clients),
 so the ~590-line base stays DRY across all of them.
 
@@ -40,16 +40,16 @@ share one media library and one downloads folder and use the
 arr/  (Cargo workspace)
   crates/
     arr-base/   shared Servarr transport + typed clients (rlib)
-    sonarr/     -> libsonarr    (cdylib plugin)
-    radarr/     -> libradarr
-    prowlarr/   -> libprowlarr
-    lidarr/     -> liblidarr
-    readarr/    -> libreadarr
+    sonarr/     -> sonarr    (subprocess plugin [[bin]])
+    radarr/     -> radarr
+    prowlarr/   -> prowlarr
+    lidarr/     -> lidarr
+    readarr/    -> readarr
 ```
 
 ### Adding an *arr app
 
 1. Drop `specs/<app>.openapi.json` into [`arr-base/specs`](crates/arr-base/specs) and add a `flavor!(<app>)` (+ a `Flavor` variant if it uses the shared Servarr `Client`).
-2. Add a `crates/<app>` cdylib crate depending on `arr-base` with its own tool surface + `abi_export` (single `<app>.` namespace).
+2. Add a `crates/<app>` subprocess-plugin crate (`[[bin]]` + `serve_tool_plugin!`) depending on `arr-base` with its own tool surface (single `<app>.` namespace).
 
 Apps that aren't Servarr-shaped live in their own repos rather than this workspace, since they don't share the Servarr `Client` — e.g. [bazarr](https://github.com/argyle-labs/bazarr) and [kapowarr](https://github.com/argyle-labs/kapowarr).
