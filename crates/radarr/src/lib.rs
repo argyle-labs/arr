@@ -36,7 +36,7 @@ async fn make_client(name: &str) -> Result<Client> {
     if !row.enabled {
         bail!("radarr endpoint '{name}' is disabled");
     }
-    let base_url = address::resolve_reachable(name, &row.addresses, false).await?;
+    let base_url = route::resolve_reachable(name, &row.routes, false).await?;
     Ok(Client::new(Config::new(
         base_url,
         row.api_key,
