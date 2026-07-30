@@ -9,11 +9,10 @@ build = "build.rs"
 name = "arr_base"
 path = "src/lib.rs"
 
-# arr-base is the crate-internal base library the per-app plugin crates
-# (sonarr/radarr/prowlarr/lidarr/readarr) depend on. It is NOT a cdylib and
-# carries no abi_stable FFI export — just the hand-written `Client` transport,
-# result types, `ops`, and the progenitor `flavor!` clients codegenned at build
-# time from `specs/<app>.openapi.json` (see `build.rs`).
+# arr-base is a plain rlib shared by the per-app plugin crates
+# (sonarr/radarr/prowlarr/lidarr/readarr). It provides the hand-written
+# `Client` transport, result types, `ops`, and the progenitor `flavor!` clients
+# codegenned at build time from `specs/<app>.openapi.json` (see `build.rs`).
 [dependencies]
 plugin-toolkit.workspace = true
 

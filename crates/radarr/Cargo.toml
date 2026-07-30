@@ -10,8 +10,9 @@ category = "downloads"
 [lib]
 name = "radarr"
 path = "src/lib.rs"
-# rlib retains the in-crate #[cfg(test)] harness. The plugin artifact is now the
-# [[bin]] below — a dynamic subprocess the loader spawns, not a dlopened cdylib.
+# rlib retains the in-crate #[cfg(test)] harness. The plugin artifact is the
+# [[bin]] below — a subprocess that talks to the orca daemon over its Unix
+# socket via serve_tool_plugin! from plugin-toolkit.
 crate-type = ["rlib"]
 
 [[bin]]
