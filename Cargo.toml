@@ -22,6 +22,10 @@ description = "The *arr stack — Sonarr, Radarr, Prowlarr, Lidarr, Readarr as i
 # generator reads [workspace.metadata.orca] here instead of [package.metadata.orca].
 [workspace.metadata.orca]
 category = "downloads"
+# This repo ships FIVE independent plugin binaries (one per *arr app), not a single
+# bundled `arr` plugin. Each is its own catalog entry / release artifact
+# (`{name}-v{version}-{triple}`). Keep in sync with the crates under `crates/`.
+plugins = ["lidarr", "prowlarr", "radarr", "readarr", "sonarr"]
 
 [workspace.dependencies]
 # The SOLE orca dependency shared by every crate. All macro-emitted paths
