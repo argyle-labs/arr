@@ -6,4 +6,5 @@
 plugin_toolkit::serve_tool_plugin! {
     name: "readarr",
     target_compat: "readarr=v1",
+    link: readarr,
 }

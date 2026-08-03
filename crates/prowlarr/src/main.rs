@@ -6,4 +6,5 @@
 plugin_toolkit::serve_tool_plugin! {
     name: "prowlarr",
     target_compat: "prowlarr=v1",
+    link: prowlarr,
 }

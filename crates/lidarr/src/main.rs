@@ -6,4 +6,5 @@
 plugin_toolkit::serve_tool_plugin! {
     name: "lidarr",
     target_compat: "lidarr=v1",
+    link: lidarr,
 }
