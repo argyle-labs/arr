@@ -18,7 +18,7 @@ First-party [orca](https://github.com/argyle-labs/orca) plugins (service-backend
 |---|-----|------|------|-------|
 | <img src="crates/sonarr/assets/icon-256.png" width="28" /> | **Sonarr** | `8989` | TV series | [crates/sonarr](crates/sonarr) |
 | <img src="crates/radarr/assets/icon-256.png" width="28" /> | **Radarr** | `7878` | Movies (4K: `7879`) | [crates/radarr](crates/radarr) |
-| <img src="crates/prowlarr/assets/icon-256.png" width="28" /> | **Prowlarr** | `9696` | Indexer manager | [crates/prowlarr](crates/prowlarr) |
+| <img src="crates/prowlarr/assets/icon-256.png" width="28" /> | **Prowlarr** | `9696` | Source manager | [crates/prowlarr](crates/prowlarr) |
 | <img src="crates/lidarr/assets/icon-256.png" width="28" /> | **Lidarr** | `8686` | Music | [crates/lidarr](crates/lidarr) |
 | <img src="crates/readarr/assets/icon-256.png" width="28" /> | **Readarr** | `8787` | Books/audiobooks (legacy) | [crates/readarr](crates/readarr) |
 
@@ -30,8 +30,8 @@ own official icon.
 
 Each app is an independent container. See the per-app README for its compose,
 ports, and backup/restore — start with [`prowlarr`](crates/prowlarr) (add your
-indexers there; it syncs them to the others), then the apps you want. All apps
-share one media library and one downloads folder and use the
+content sources there; it syncs them to the others), then the apps you want. All apps
+share one media library and one media/imports folder and use the
 [LinuxServer.io](https://docs.linuxserver.io/) images. Upstream: <https://wiki.servarr.com/>.
 
 ## Layout

@@ -4,7 +4,7 @@
 
 # prowlarr
 
-Prowlarr is the **indexer manager** for the *arr apps — add your indexers/trackers
+Prowlarr is the **source manager** for the *arr apps — add your content sources
 once here and it syncs them to Sonarr, Radarr, Lidarr, and Readarr.
 
 A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend) — one cdylib in the [`arr`](../../README.md) workspace.
