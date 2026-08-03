@@ -6,4 +6,5 @@
 plugin_toolkit::serve_tool_plugin! {
     name: "sonarr",
     target_compat: "sonarr=v3",
+    link: sonarr,
 }
