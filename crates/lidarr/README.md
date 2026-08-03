@@ -4,7 +4,7 @@
 
 # lidarr
 
-Lidarr automates finding, downloading, and organizing **music**.
+Lidarr automates finding, organizing, and managing **music**.
 
 A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend) — one cdylib in the [`arr`](../../README.md) workspace.
 
@@ -51,8 +51,8 @@ Music root folder: `/data/media/music`.
 
 ### Dependencies
 
-- A download client — [`qbittorrent`](https://github.com/argyle-labs/qbittorrent) (torrent) and/or [`sabnzbd`](https://github.com/argyle-labs/sabnzbd) (usenet).
-- Indexers — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Lidarr.
+- A client of your choice — your configured client.
+- Content sources — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Lidarr.
 
 ### Ports & data
 

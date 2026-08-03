@@ -4,7 +4,7 @@
 
 # sonarr
 
-Sonarr automates finding, downloading, and organizing **TV series**.
+Sonarr automates finding, organizing, and managing **TV series**.
 
 A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend) — one cdylib in the [`arr`](../../README.md) workspace.
 
@@ -51,8 +51,8 @@ TV root folder: `/data/media/tv`.
 
 ### Dependencies
 
-- A download client — [`qbittorrent`](https://github.com/argyle-labs/qbittorrent) (torrent) and/or [`sabnzbd`](https://github.com/argyle-labs/sabnzbd) (usenet).
-- Indexers — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Sonarr.
+- A client of your choice — your configured client.
+- Content sources — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Sonarr.
 
 ### Ports & data
 

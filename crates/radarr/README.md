@@ -4,7 +4,7 @@
 
 # radarr
 
-Radarr automates finding, downloading, and organizing **movies**.
+Radarr automates finding, organizing, and managing **movies**.
 
 A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend) — one cdylib in the [`arr`](../../README.md) workspace.
 
@@ -53,8 +53,8 @@ folder; see [radarr-4k.md](docs/radarr-4k.md).
 
 ### Dependencies
 
-- A download client — [`qbittorrent`](https://github.com/argyle-labs/qbittorrent) (torrent) and/or [`sabnzbd`](https://github.com/argyle-labs/sabnzbd) (usenet).
-- Indexers — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Radarr.
+- A client of your choice — your configured client.
+- Content sources — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Radarr.
 
 ### Ports & data
 

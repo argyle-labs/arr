@@ -71,9 +71,9 @@ exactly what caught S02E01 — implement them as the core of `SubtitleDesynced` 
   task; fall back to Whisper (`whisperai`) when no provider clears
   `minimum_score`.
 - `SubtitleDesynced` → run ffsubsync (`subsync.*`, audio reference) rather than
-  re-download when content is right (e.g. S02E07 "Love-Bheits" — correct sub,
+  re-fetch when content is right (e.g. S02E07 "Love-Bheits" — correct sub,
   shorter video cut).
-- `SubtitleWrongContent` → blacklist + re-download best-scored replacement.
+- `SubtitleWrongContent` → blacklist + re-fetch best-scored replacement.
 - `ForeignSidecarPresent` → `Delete`.
 - `LanguageProfileGap` → assign the default profile (repair may require
   confirmation — it changes Sonarr-side config).
@@ -122,7 +122,7 @@ Sonarr.diagnose  ─┐
 Bazarr.diagnose  ─┘
         │
         ├─ video wrong  → Sonarr.repair (re-grab) → Bazarr.repair (re-fetch sub)
-        ├─ sub wrong    → Bazarr.repair (blacklist + re-download)
+        ├─ sub wrong    → Bazarr.repair (blacklist + re-fetch)
         ├─ sub desynced → Bazarr.repair (ffsubsync)
         └─ coverage gap → Sonarr/Bazarr.repair (monitor + language profile)
 ```

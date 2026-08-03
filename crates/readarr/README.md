@@ -4,7 +4,7 @@
 
 # readarr
 
-Readarr automates finding, downloading, and organizing **ebooks and audiobooks**.
+Readarr automates finding, organizing, and managing **ebooks and audiobooks**.
 
 A first-party [orca](https://github.com/argyle-labs/orca) plugin (service-backend) — one cdylib in the [`arr`](../../README.md) workspace.
 
@@ -53,8 +53,8 @@ Root folders: `/data/media/books` (ebooks) and `/data/media/audiobooks`.
 
 ### Dependencies
 
-- A download client — [`qbittorrent`](https://github.com/argyle-labs/qbittorrent) (torrent) and/or [`sabnzbd`](https://github.com/argyle-labs/sabnzbd) (usenet).
-- Indexers — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Readarr.
+- A client of your choice — your configured client.
+- Content sources — added once in [`prowlarr`](../prowlarr/README.md), which syncs them to Readarr.
 
 ### Ports & data
 
