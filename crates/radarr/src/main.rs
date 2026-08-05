@@ -6,4 +6,5 @@
 plugin_toolkit::serve_tool_plugin! {
     name: "radarr",
     target_compat: "radarr=v3",
+    link: radarr,
 }
