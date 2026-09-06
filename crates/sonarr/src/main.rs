@@ -1,10 +1,15 @@
 //! Dynamic (subprocess) entrypoint for the sonarr plugin.
 //!
-//! The toolkit's `serve_tool_plugin!` emits `fn main`, serving this plugin over the orca
-//! socket. The plugin is a `[[bin]]`, owns no runtime, and reaches orca only
-//! through the socket.
-plugin_toolkit::serve_tool_plugin! {
-    name: "sonarr",
-    target_compat: "sonarr=v3",
-    link: sonarr,
+//! A `[[bin]]` that owns no runtime and reaches orca only through the socket.
+//! Built with the typed `Plugin` builder; `use sonarr as _` force-links the
+//! crate's `#[orca_tool]` inventory (nothing else in the bin references the
+//! rlib, so without this the linker would dead-strip every tool registration).
+plugin_toolkit::instrument::bootstrap!();
+use plugin_toolkit::plugin::Plugin;
+use sonarr as _;
+fn main() -> plugin_toolkit::anyhow::Result<()> {
+    Plugin::named("sonarr")
+        .version(env!("CARGO_PKG_VERSION"))
+        .tools(["sonarr."])
+        .serve()
 }

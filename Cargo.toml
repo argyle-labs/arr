@@ -32,8 +32,8 @@ plugins = ["lidarr", "prowlarr", "radarr", "readarr", "sonarr"]
 # (`#[orca_tool]`, `endpoint_resource!`, dispatch) resolve through
 # `::plugin_toolkit::*`; the progenitor-generated clients' bare serde/reqwest
 # paths are rewritten to `::plugin_toolkit::*` by the build-time codegen.
-plugin-toolkit = { git = "https://github.com/argyle-labs/orca", tag = "v0.1.7-rc.1" }
-plugin-toolkit-build = { git = "https://github.com/argyle-labs/orca", tag = "v0.1.7-rc.1" }
+plugin-toolkit = { git = "https://github.com/argyle-labs/orca", branch = "main" }
+plugin-toolkit-build = { git = "https://github.com/argyle-labs/orca", branch = "main" }
 # The shared Servarr base (transport + typed clients).
 arr-base = { path = "crates/arr-base" }
 # Dev-only (tests): wiremock/tokio/rustls drive the HTTP + auth transport tests.
