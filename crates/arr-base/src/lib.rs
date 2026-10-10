@@ -66,11 +66,21 @@ impl Flavor {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub base_url: String,
     pub api_key: String,
     pub flavor: Flavor,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("base_url", &self.base_url)
+            .field("api_key", &"<redacted>")
+            .field("flavor", &self.flavor)
+            .finish()
+    }
 }
 
 impl Config {
@@ -894,5 +904,14 @@ mod tests {
         let c = category_collisions(&claims);
         assert_eq!(c.len(), 1);
         assert!(c[0].claims.iter().all(|c| c.category.is_empty()));
+    }
+
+    #[test]
+    fn config_debug_redacts_the_api_key() {
+        let dbg = format!("{:?}", Config::new("http://x", "s3cr3tkey", Flavor::Radarr));
+        assert!(
+            !dbg.contains("s3cr3tkey") && dbg.contains("<redacted>"),
+            "{dbg}"
+        );
     }
 }
