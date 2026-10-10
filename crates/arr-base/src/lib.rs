@@ -223,6 +223,230 @@ pub struct SystemStatus {
     pub instance_name: Option<String>,
 }
 
+/// One download client from `/api/{v}/downloadclient`, reduced to the identity
+/// and category. The wire `fields` list carries credentials, so it is consumed
+/// during deserialization and never retained.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[serde(from = "RawDownloadClient")]
+pub struct DownloadClient {
+    pub id: Option<i64>,
+    pub name: Option<String>,
+    pub implementation: Option<String>,
+    pub enable: bool,
+    /// Normalized identity of the backing client; see [`client_target`].
+    pub target: Option<String>,
+    /// Category this app files grabs under, as configured.
+    pub category: Option<String>,
+}
+
+#[derive(plugin_toolkit::serde::Deserialize)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[serde(rename_all = "camelCase")]
+struct RawDownloadClient {
+    #[serde(default)]
+    id: Option<i64>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    implementation: Option<String>,
+    #[serde(default)]
+    enable: Option<bool>,
+    #[serde(default)]
+    fields: Vec<RawField>,
+}
+
+#[derive(plugin_toolkit::serde::Deserialize)]
+#[serde(crate = "plugin_toolkit::serde")]
+struct RawField {
+    name: String,
+    #[serde(default)]
+    value: Option<plugin_toolkit::serde_json::Value>,
+}
+
+/// Per-app category field names: Radarr, Sonarr, Lidarr, Readarr.
+pub const CATEGORY_FIELDS: &[&str] = &[
+    "movieCategory",
+    "tvCategory",
+    "musicCategory",
+    "bookCategory",
+];
+
+impl From<RawDownloadClient> for DownloadClient {
+    fn from(raw: RawDownloadClient) -> Self {
+        let field = |name: &str| -> Option<String> {
+            let v = raw.fields.iter().find(|f| f.name == name)?.value.as_ref()?;
+            let s = match v {
+                plugin_toolkit::serde_json::Value::String(s) => s.trim().to_string(),
+                plugin_toolkit::serde_json::Value::Number(n) => n.to_string(),
+                plugin_toolkit::serde_json::Value::Bool(b) => b.to_string(),
+                _ => return None,
+            };
+            (!s.is_empty()).then_some(s)
+        };
+        let target = field("host").map(|host| {
+            client_target(
+                &host,
+                field("port").as_deref(),
+                field("useSsl").as_deref() == Some("true"),
+                field("urlBase").as_deref(),
+            )
+        });
+        let category = CATEGORY_FIELDS.iter().find_map(|f| field(f));
+        DownloadClient {
+            id: raw.id,
+            name: raw.name,
+            implementation: raw.implementation,
+            enable: raw.enable.unwrap_or(true),
+            target,
+            category,
+        }
+    }
+}
+
+/// `scheme://host[:port][/urlBase]`, host lowercased and loopback names folded to
+/// `localhost`. Hostnames are compared as written: two apps that reach one client
+/// by different aliases (container name vs LAN IP vs DNS name) are not matched.
+pub fn client_target(
+    host: &str,
+    port: Option<&str>,
+    use_ssl: bool,
+    url_base: Option<&str>,
+) -> String {
+    let host = host.trim().trim_end_matches('/').to_ascii_lowercase();
+    let host = host
+        .strip_prefix("https://")
+        .or_else(|| host.strip_prefix("http://"))
+        .unwrap_or(&host);
+    let host = match host {
+        "127.0.0.1" | "::1" | "[::1]" | "localhost" => "localhost",
+        h => h,
+    };
+    let scheme = if use_ssl { "https" } else { "http" };
+    let port = port.map(|p| format!(":{p}")).unwrap_or_default();
+    let base = url_base
+        .map(|b| b.trim_matches('/'))
+        .filter(|b| !b.is_empty())
+        .map(|b| format!("/{}", b.to_ascii_lowercase()))
+        .unwrap_or_default();
+    format!("{scheme}://{host}{port}{base}")
+}
+
+/// One app instance's claim on a category at a download client.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct CategoryClaim {
+    /// The *arr instance making the claim (e.g. `radarr-4k`).
+    pub consumer: String,
+    pub target: String,
+    /// As configured.
+    pub category: String,
+}
+
+/// Two or more instances sharing one category on one download client: each
+/// instance's queue monitoring then imports the others' completed grabs.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct CategoryCollision {
+    pub target: String,
+    /// The colliding claims; categories as each instance configured them.
+    pub claims: Vec<CategoryClaim>,
+}
+
+/// Claims derived from one instance's enabled download clients.
+pub fn category_claims(consumer: &str, clients: &[DownloadClient]) -> Vec<CategoryClaim> {
+    clients
+        .iter()
+        .filter(|c| c.enable)
+        .filter_map(|c| {
+            Some(CategoryClaim {
+                consumer: consumer.to_string(),
+                target: c.target.clone()?,
+                category: c.category.clone()?,
+            })
+        })
+        .collect()
+}
+
+/// Every (download client, category) claimed by more than one distinct consumer.
+/// Categories compare case-insensitively, as qBittorrent and SABnzbd treat them.
+pub fn category_collisions(claims: &[CategoryClaim]) -> Vec<CategoryCollision> {
+    let mut groups: std::collections::BTreeMap<(String, String), Vec<CategoryClaim>> =
+        std::collections::BTreeMap::new();
+    for c in claims {
+        groups
+            .entry((c.target.clone(), c.category.to_lowercase()))
+            .or_default()
+            .push(c.clone());
+    }
+    groups
+        .into_iter()
+        .filter_map(|((target, _), mut claims)| {
+            claims.sort_by(|a, b| a.consumer.cmp(&b.consumer));
+            claims.dedup_by(|a, b| a.consumer == b.consumer);
+            (claims.len() > 1).then_some(CategoryCollision { target, claims })
+        })
+        .collect()
+}
+
+/// An instance that could not be read; the report covers the rest.
+#[derive(
+    Debug,
+    Clone,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct UnreadInstance {
+    pub endpoint: String,
+    pub error: String,
+}
+
+/// Read-only category collision report across instances of one app.
+#[derive(
+    Debug,
+    Clone,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct CategoryReport {
+    /// Endpoints whose download clients were read.
+    pub checked: Vec<String>,
+    pub unread: Vec<UnreadInstance>,
+    pub claims: Vec<CategoryClaim>,
+    pub collisions: Vec<CategoryCollision>,
+}
+
 /// Hand-written transport. Carries the *arr API key on every request as
 /// `X-Api-Key: <api_key>` — the wire format every *arr fork accepts.
 #[derive(Clone)]
@@ -267,6 +491,12 @@ impl Client {
         resp.json::<SystemStatus>().map_err(ArrError::Http)
     }
 
+    /// Configured download clients.
+    pub async fn download_clients(&self) -> Result<Vec<DownloadClient>, ArrError> {
+        let resp = self.authed_get(&self.api_path("/downloadclient")).await?;
+        resp.json::<Vec<DownloadClient>>().map_err(ArrError::Http)
+    }
+
     /// Re-test every indexer — clears stale backoff. **Remediation.**
     pub async fn test_indexers(&self) -> Result<Vec<IndexerTestResult>, ArrError> {
         let resp = self
@@ -303,7 +533,8 @@ impl Client {
 /// build a [`Client`] with the app's fixed [`Flavor`], and call one of these.
 pub mod ops {
     use super::{
-        ArrError, Client, HealthIssue, Indexer, IndexerStatus, IndexerTestResult, SystemStatus,
+        ArrError, CategoryReport, Client, DownloadClient, HealthIssue, Indexer, IndexerStatus,
+        IndexerTestResult, SystemStatus, UnreadInstance, category_claims, category_collisions,
     };
 
     /// **Detection.** Health issues currently raised by the server.
@@ -324,6 +555,39 @@ pub mod ops {
     /// **Remediation.** Re-test every indexer — clears stale backoff.
     pub async fn test_indexers(client: &Client) -> Result<Vec<IndexerTestResult>, ArrError> {
         client.test_indexers().await
+    }
+
+    /// Configured download clients.
+    pub async fn download_clients(client: &Client) -> Result<Vec<DownloadClient>, ArrError> {
+        client.download_clients().await
+    }
+
+    /// Category collisions across instances. An endpoint that fails to resolve
+    /// or answer is listed under `unread` rather than failing the report.
+    pub async fn category_report(
+        instances: Vec<(String, Result<Client, String>)>,
+    ) -> CategoryReport {
+        let mut report = CategoryReport {
+            checked: Vec::new(),
+            unread: Vec::new(),
+            claims: Vec::new(),
+            collisions: Vec::new(),
+        };
+        for (endpoint, client) in instances {
+            let clients = match client {
+                Ok(c) => c.download_clients().await.map_err(|e| e.to_string()),
+                Err(e) => Err(e),
+            };
+            match clients {
+                Ok(clients) => {
+                    report.claims.extend(category_claims(&endpoint, &clients));
+                    report.checked.push(endpoint);
+                }
+                Err(error) => report.unread.push(UnreadInstance { endpoint, error }),
+            }
+        }
+        report.collisions = category_collisions(&report.claims);
+        report
     }
 
     /// App name / version / instance name.
@@ -478,5 +742,149 @@ mod tests {
             .unwrap();
         assert_eq!(status.app_name.as_deref(), Some("Sonarr"));
         assert_eq!(status.version.as_deref(), Some("4.0.0"));
+    }
+
+    fn dc(host: &str, port: i64, field: &str, cat: &str, enable: bool) -> DownloadClient {
+        serde_json::from_value(serde_json::json!({
+            "name": "qBittorrent", "implementation": "QBittorrent", "enable": enable,
+            "fields": [
+                {"name": "host", "value": host},
+                {"name": "port", "value": port},
+                {"name": "username", "value": "admin"},
+                {"name": "password", "value": "hunter2"},
+                {"name": field, "value": cat},
+                {"name": "movieImportedCategory", "value": "imported"}
+            ]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn credentials_are_not_retained() {
+        let c = dc("qbit", 8080, "movieCategory", "radarr", true);
+        let out = format!("{c:?} {}", serde_json::to_string(&c).unwrap());
+        assert!(!out.contains("hunter2") && !out.contains("admin"), "{out}");
+    }
+
+    #[test]
+    fn shared_category_on_one_client_collides_and_keeps_configured_case() {
+        let mut claims = category_claims(
+            "radarr",
+            &[dc("freyr", 8080, "movieCategory", "radarr", true)],
+        );
+        claims.extend(category_claims(
+            "radarr-4k",
+            &[dc("FREYR", 8080, "movieCategory", "Radarr", true)],
+        ));
+        claims.extend(category_claims(
+            "sonarr",
+            &[dc("freyr", 8080, "tvCategory", "sonarr", true)],
+        ));
+        let c = category_collisions(&claims);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].target, "http://freyr:8080");
+        let cats: Vec<(&str, &str)> = c[0]
+            .claims
+            .iter()
+            .map(|c| (c.consumer.as_str(), c.category.as_str()))
+            .collect();
+        assert_eq!(cats, vec![("radarr", "radarr"), ("radarr-4k", "Radarr")]);
+    }
+
+    #[test]
+    fn distinct_clients_or_disabled_entries_do_not_collide() {
+        let mut claims = category_claims(
+            "radarr",
+            &[dc("freyr", 8080, "movieCategory", "radarr", true)],
+        );
+        claims.extend(category_claims(
+            "radarr-4k",
+            &[dc("freyr", 8081, "movieCategory", "radarr", true)],
+        ));
+        claims.extend(category_claims(
+            "radarr-old",
+            &[dc("freyr", 8080, "movieCategory", "radarr", false)],
+        ));
+        assert!(category_collisions(&claims).is_empty());
+    }
+
+    #[test]
+    fn only_listed_category_fields_count() {
+        assert_eq!(
+            dc("h", 1, "musicCategory", "lidarr", true)
+                .category
+                .as_deref(),
+            Some("lidarr")
+        );
+        assert_eq!(dc("h", 1, "someOtherCategory", "x", true).category, None);
+    }
+
+    #[test]
+    fn target_normalization() {
+        assert_eq!(
+            client_target("LocalHost", Some("8080"), false, None),
+            "http://localhost:8080"
+        );
+        assert_eq!(
+            client_target("127.0.0.1", Some("8080"), false, Some("/")),
+            "http://localhost:8080"
+        );
+        assert_eq!(
+            client_target("qbit", Some("443"), true, Some("/QB/")),
+            "https://qbit:443/qb"
+        );
+        assert_ne!(
+            client_target("qbit", Some("8080"), false, None),
+            client_target("qbit", Some("8080"), true, None)
+        );
+    }
+
+    #[tokio::test]
+    async fn category_report_spans_instances_and_tolerates_failures() {
+        let body = serde_json::json!([{"id": 1, "name": "qbit", "enable": true, "fields": [
+            {"name": "host", "value": "qbit"}, {"name": "port", "value": 8080},
+            {"name": "movieCategory", "value": "radarr"}
+        ]}]);
+        let mut servers = Vec::new();
+        for _ in 0..2 {
+            let server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .and(path("/api/v3/downloadclient"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body.clone()))
+                .mount(&server)
+                .await;
+            servers.push(server);
+        }
+        let client = |s: &MockServer| Ok(Client::new(Config::new(s.uri(), "key", Flavor::Radarr)));
+        let report = ops::category_report(vec![
+            ("radarr".into(), client(&servers[0])),
+            ("radarr-4k".into(), client(&servers[1])),
+            ("radarr-gone".into(), Err("not reachable".into())),
+        ])
+        .await;
+        assert_eq!(report.checked, vec!["radarr", "radarr-4k"]);
+        assert_eq!(report.unread[0].endpoint, "radarr-gone");
+        assert_eq!(report.collisions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn download_clients_parses() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/downloadclient"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                {"id": 1, "name": "qbit", "enable": true, "fields": [
+                    {"name": "host", "value": "qbit"}, {"name": "port", "value": 8080},
+                    {"name": "tvCategory", "value": "sonarr"}
+                ]}
+            ])))
+            .mount(&server)
+            .await;
+        let clients = Client::new(Config::new(server.uri(), "key", Flavor::Sonarr))
+            .download_clients()
+            .await
+            .unwrap();
+        assert_eq!(clients[0].target.as_deref(), Some("http://qbit:8080"));
+        assert_eq!(clients[0].category.as_deref(), Some("sonarr"));
     }
 }

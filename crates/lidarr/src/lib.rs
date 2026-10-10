@@ -7,6 +7,8 @@
 //! - `lidarr.health` — **detection.** Health issues from `/api/v1/health`.
 //! - `lidarr.indexers` — configured indexers from `/api/v1/indexer`.
 //! - `lidarr.test_indexers` — **remediation.** Re-test every indexer.
+//! - `lidarr.category_collisions` — **detection.** Download-client categories
+//!   shared by more than one registered Lidarr endpoint.
 //! - `lidarr.system_status` — app name / version / instance.
 //!
 //! Lidarr speaks `/api/v1` with a `/artist` media model; the [`Flavor`] is
@@ -159,6 +161,33 @@ async fn lidarr_test_indexers(
         valid_count,
         results,
     })
+}
+
+#[derive(
+    plugin_toolkit::clap::Args,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct LidarrCategoryCollisionsArgs {}
+
+/// **Detection.** Download-client categories shared by more than one enabled
+/// Lidarr endpoint (e.g. a 4K instance on the main instance's category), which
+/// lets one instance import the other's grabs. Read-only. Covers this app's
+/// endpoints only; categories used by other *arr apps are not compared.
+#[orca_tool(domain = "lidarr", verb = "category_collisions")]
+async fn lidarr_category_collisions(
+    _args: LidarrCategoryCollisionsArgs,
+    _ctx: &ToolCtx,
+) -> Result<arr_base::CategoryReport> {
+    let mut instances = Vec::new();
+    for row in endpoint_db::list()?.into_iter().filter(|r| r.enabled) {
+        let client = make_client(&row.name).await.map_err(|e| format!("{e:#}"));
+        instances.push((row.name, client));
+    }
+    Ok(arr_base::ops::category_report(instances).await)
 }
 
 #[derive(
