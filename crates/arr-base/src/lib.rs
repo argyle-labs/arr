@@ -225,15 +225,9 @@ pub struct SystemStatus {
 
 /// One download client from `/api/{v}/downloadclient`, reduced to the identity
 /// and category. The wire `fields` list carries credentials, so it is consumed
-/// during deserialization and never retained.
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    plugin_toolkit::serde::Serialize,
-    plugin_toolkit::serde::Deserialize,
-)]
+/// during deserialization and never retained. Deserialize-only: it reads the
+/// *arr wire shape and has no serialized form of its own.
+#[derive(Debug, Clone, PartialEq, Eq, plugin_toolkit::serde::Deserialize)]
 #[serde(crate = "plugin_toolkit::serde")]
 #[serde(from = "RawDownloadClient")]
 pub struct DownloadClient {
@@ -387,7 +381,9 @@ pub fn category_claims(consumer: &str, clients: &[DownloadClient]) -> Vec<Catego
             Some(CategoryClaim {
                 consumer: consumer.to_string(),
                 target: c.target.clone()?,
-                category: c.category.clone()?,
+                // An unset category is the client's shared uncategorized pool,
+                // so two apps leaving it empty collide on `""`.
+                category: c.category.clone().unwrap_or_default(),
             })
         })
         .collect()
@@ -762,7 +758,7 @@ mod tests {
     #[test]
     fn credentials_are_not_retained() {
         let c = dc("qbit", 8080, "movieCategory", "radarr", true);
-        let out = format!("{c:?} {}", serde_json::to_string(&c).unwrap());
+        let out = format!("{c:?}");
         assert!(!out.contains("hunter2") && !out.contains("admin"), "{out}");
     }
 
@@ -886,5 +882,17 @@ mod tests {
             .unwrap();
         assert_eq!(clients[0].target.as_deref(), Some("http://qbit:8080"));
         assert_eq!(clients[0].category.as_deref(), Some("sonarr"));
+    }
+
+    #[test]
+    fn empty_categories_collide_as_empty_string() {
+        let mut claims = category_claims("radarr", &[dc("qbit", 8080, "movieCategory", "", true)]);
+        claims.extend(category_claims(
+            "sonarr",
+            &[dc("qbit", 8080, "tvCategory", " ", true)],
+        ));
+        let c = category_collisions(&claims);
+        assert_eq!(c.len(), 1);
+        assert!(c[0].claims.iter().all(|c| c.category.is_empty()));
     }
 }
