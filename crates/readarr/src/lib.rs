@@ -9,6 +9,8 @@
 //! - `readarr.test_indexers` — **remediation.** Re-test every indexer.
 //! - `readarr.category_collisions` — **detection.** Download-client categories
 //!   shared by more than one registered Readarr endpoint.
+//! - `readarr.usenet_preference` — **detection.** Delay profiles that prefer
+//!   usenet without a torrent delay, so torrents are still grabbed first.
 //! - `readarr.system_status` — app name / version / instance.
 //!
 //! Readarr speaks `/api/v1` with a `/author` media model; the [`Flavor`] is
@@ -19,7 +21,10 @@
 
 use plugin_toolkit::prelude::*;
 
-use arr_base::{Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus};
+use arr_base::{
+    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
+    UsenetPreferenceGap,
+};
 
 #[endpoint_resource(plugin = "readarr")]
 pub struct ReadarrEndpoint {
@@ -191,6 +196,43 @@ async fn readarr_category_collisions(
         instances.push((row.name, client));
     }
     Ok(arr_base::ops::category_report(instances).await)
+}
+
+#[derive(
+    plugin_toolkit::clap::Args,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct ReadarrUsenetPreferenceArgs {
+    /// Registered endpoint name.
+    pub endpoint: String,
+}
+
+#[derive(
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct ReadarrUsenetPreferenceOutput {
+    /// Delay profiles whose usenet preference is ineffective.
+    pub gaps: Vec<UsenetPreferenceGap>,
+}
+
+/// **Detection.** Delay profiles that prefer usenet but whose torrent delay
+/// does not exceed the usenet delay, so a torrent is grabbed before a usenet
+/// release has had time to appear. Read-only.
+#[orca_tool(domain = "readarr", verb = "usenet_preference")]
+async fn readarr_usenet_preference(
+    args: ReadarrUsenetPreferenceArgs,
+    _ctx: &ToolCtx,
+) -> Result<ReadarrUsenetPreferenceOutput> {
+    let gaps = arr_base::ops::usenet_preference(&make_client(&args.endpoint).await?).await?;
+    Ok(ReadarrUsenetPreferenceOutput { gaps })
 }
 
 #[derive(
