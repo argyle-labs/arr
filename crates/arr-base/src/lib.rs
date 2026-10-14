@@ -153,6 +153,77 @@ pub struct HealthIssue {
     pub wiki_url: Option<String>,
 }
 
+/// One delay profile from `/api/{v}/delayprofile`. Delays are minutes.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+#[serde(rename_all = "camelCase")]
+pub struct DelayProfile {
+    #[serde(default)]
+    pub id: Option<i64>,
+    #[serde(default)]
+    pub enable_usenet: bool,
+    #[serde(default)]
+    pub enable_torrent: bool,
+    /// `usenet`, `torrent`, or `unknown`.
+    #[serde(default)]
+    pub preferred_protocol: Option<String>,
+    #[serde(default)]
+    pub usenet_delay: i64,
+    #[serde(default)]
+    pub torrent_delay: i64,
+    #[serde(default)]
+    pub tags: Option<Vec<i64>>,
+}
+
+/// A delay profile that prefers usenet but grabs a torrent the moment one
+/// appears, because the torrent delay does not exceed the usenet delay.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct UsenetPreferenceGap {
+    pub profile: DelayProfile,
+    pub message: String,
+}
+
+/// Profiles whose usenet preference is ineffective. Preference only orders
+/// releases already found; without a torrent delay longer than the usenet
+/// delay, a torrent that shows up first is grabbed before any usenet release.
+pub fn usenet_preference_gaps(profiles: &[DelayProfile]) -> Vec<UsenetPreferenceGap> {
+    profiles
+        .iter()
+        .filter(|p| {
+            p.enable_usenet
+                && p.enable_torrent
+                && p.preferred_protocol.as_deref() == Some("usenet")
+                && p.torrent_delay <= p.usenet_delay
+        })
+        .map(|p| UsenetPreferenceGap {
+            profile: p.clone(),
+            message: format!(
+                "prefers usenet but torrentDelay ({}m) <= usenetDelay ({}m); torrents are grabbed before usenet releases are waited for",
+                p.torrent_delay, p.usenet_delay
+            ),
+        })
+        .collect()
+}
+
 /// One configured indexer from `/api/{v}/indexer`.
 #[derive(
     Debug,
@@ -503,6 +574,12 @@ impl Client {
         resp.json::<Vec<DownloadClient>>().map_err(ArrError::Http)
     }
 
+    /// Configured delay profiles.
+    pub async fn delay_profiles(&self) -> Result<Vec<DelayProfile>, ArrError> {
+        let resp = self.authed_get(&self.api_path("/delayprofile")).await?;
+        resp.json::<Vec<DelayProfile>>().map_err(ArrError::Http)
+    }
+
     /// Re-test every indexer — clears stale backoff. **Remediation.**
     pub async fn test_indexers(&self) -> Result<Vec<IndexerTestResult>, ArrError> {
         let resp = self
@@ -540,7 +617,8 @@ impl Client {
 pub mod ops {
     use super::{
         ArrError, CategoryReport, Client, DownloadClient, HealthIssue, Indexer, IndexerStatus,
-        IndexerTestResult, SystemStatus, UnreadInstance, category_claims, category_collisions,
+        IndexerTestResult, SystemStatus, UnreadInstance, UsenetPreferenceGap, category_claims,
+        category_collisions, usenet_preference_gaps,
     };
 
     /// **Detection.** Health issues currently raised by the server.
@@ -594,6 +672,11 @@ pub mod ops {
         }
         report.collisions = category_collisions(&report.claims);
         report
+    }
+
+    /// **Detection.** Delay profiles whose usenet preference is ineffective.
+    pub async fn usenet_preference(client: &Client) -> Result<Vec<UsenetPreferenceGap>, ArrError> {
+        Ok(usenet_preference_gaps(&client.delay_profiles().await?))
     }
 
     /// App name / version / instance name.
@@ -913,5 +996,49 @@ mod tests {
             !dbg.contains("s3cr3tkey") && dbg.contains("<redacted>"),
             "{dbg}"
         );
+    }
+
+    fn profile(pref: &str, usenet: bool, torrent: bool, ud: i64, td: i64) -> DelayProfile {
+        DelayProfile {
+            id: Some(1),
+            enable_usenet: usenet,
+            enable_torrent: torrent,
+            preferred_protocol: Some(pref.into()),
+            usenet_delay: ud,
+            torrent_delay: td,
+            tags: None,
+        }
+    }
+
+    #[test]
+    fn usenet_preference_without_torrent_delay_is_a_gap() {
+        let gaps = usenet_preference_gaps(&[
+            profile("usenet", true, true, 0, 0),
+            profile("usenet", true, true, 0, 60),
+            profile("usenet", true, true, 30, 30),
+            profile("torrent", true, true, 0, 0),
+            profile("usenet", true, false, 0, 0),
+        ]);
+        assert_eq!(gaps.len(), 2);
+        assert_eq!(gaps[0].profile.torrent_delay, 0);
+        assert_eq!(gaps[1].profile.usenet_delay, 30);
+    }
+
+    #[tokio::test]
+    async fn usenet_preference_reads_delay_profiles() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/delayprofile"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                {"id": 1, "enableUsenet": true, "enableTorrent": true,
+                 "preferredProtocol": "usenet", "usenetDelay": 0, "torrentDelay": 0,
+                 "bypassIfHighestQuality": true, "order": 2147483647, "tags": []}
+            ])))
+            .mount(&server)
+            .await;
+        let client = Client::new(Config::new(server.uri(), "key", Flavor::Lidarr));
+        let gaps = ops::usenet_preference(&client).await.unwrap();
+        assert_eq!(gaps.len(), 1);
+        assert_eq!(gaps[0].profile.id, Some(1));
     }
 }

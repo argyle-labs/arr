@@ -10,6 +10,8 @@
 //! - `sonarr.test_indexers` — **remediation.** Re-test every indexer.
 //! - `sonarr.category_collisions` — **detection.** Download-client categories
 //!   shared by more than one registered Sonarr endpoint.
+//! - `sonarr.usenet_preference` — **detection.** Delay profiles that prefer
+//!   usenet without a torrent delay, so torrents are still grabbed first.
 //! - `sonarr.system_status` — app name / version / instance.
 //!
 //! Sonarr speaks `/api/v3` with a `/series` media model; the [`Flavor`] is
@@ -20,7 +22,10 @@
 
 use plugin_toolkit::prelude::*;
 
-use arr_base::{Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus};
+use arr_base::{
+    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
+    UsenetPreferenceGap,
+};
 
 #[endpoint_resource(plugin = "sonarr")]
 pub struct SonarrEndpoint {
@@ -189,6 +194,43 @@ async fn sonarr_category_collisions(
         instances.push((row.name, client));
     }
     Ok(arr_base::ops::category_report(instances).await)
+}
+
+#[derive(
+    plugin_toolkit::clap::Args,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct SonarrUsenetPreferenceArgs {
+    /// Registered endpoint name.
+    pub endpoint: String,
+}
+
+#[derive(
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct SonarrUsenetPreferenceOutput {
+    /// Delay profiles whose usenet preference is ineffective.
+    pub gaps: Vec<UsenetPreferenceGap>,
+}
+
+/// **Detection.** Delay profiles that prefer usenet but whose torrent delay
+/// does not exceed the usenet delay, so a torrent is grabbed before a usenet
+/// release has had time to appear. Read-only.
+#[orca_tool(domain = "sonarr", verb = "usenet_preference")]
+async fn sonarr_usenet_preference(
+    args: SonarrUsenetPreferenceArgs,
+    _ctx: &ToolCtx,
+) -> Result<SonarrUsenetPreferenceOutput> {
+    let gaps = arr_base::ops::usenet_preference(&make_client(&args.endpoint).await?).await?;
+    Ok(SonarrUsenetPreferenceOutput { gaps })
 }
 
 #[derive(
