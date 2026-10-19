@@ -25,7 +25,6 @@ plugin-toolkit.workspace = true
 arr-base.workspace = true
 
 [dev-dependencies]
-plugin-toolkit.workspace = true
 tokio.workspace = true
 
 [lints]

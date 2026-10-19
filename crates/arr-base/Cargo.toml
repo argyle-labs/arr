@@ -20,7 +20,6 @@ plugin-toolkit.workspace = true
 plugin-toolkit-build.workspace = true
 
 [dev-dependencies]
-plugin-toolkit.workspace = true
 tokio.workspace = true
 wiremock.workspace = true
 rustls.workspace = true
