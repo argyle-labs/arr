@@ -12,6 +12,8 @@
 //! - `radarr.usenet_preference` — **detection.** Delay profiles that prefer
 //!   usenet without a torrent delay, so torrents are still grabbed first.
 //! - `radarr.system_status` — app name / version / instance.
+//! - `radarr.stuck_queue` — **detection.** Queue items stuck with warnings or
+//!   pending import past a threshold.
 //!
 //! Radarr speaks `/api/v3` with a `/movie` media model; the [`Flavor`] is
 //! fixed to `Radarr`.
@@ -22,7 +24,7 @@
 use plugin_toolkit::prelude::*;
 
 use arr_base::{
-    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
+    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, StuckQueueItem, SystemStatus,
     UsenetPreferenceGap,
 };
 
@@ -252,6 +254,53 @@ async fn radarr_system_status(
     _ctx: &ToolCtx,
 ) -> Result<SystemStatus> {
     Ok(arr_base::ops::system_status(&make_client(&args.endpoint).await?).await?)
+}
+
+#[derive(
+    plugin_toolkit::clap::Args,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct RadarrStuckQueueArgs {
+    /// Registered endpoint name.
+    pub endpoint: String,
+    /// Hours since an item was added before it counts as stuck.
+    #[arg(long, default_value_t = 6.0)]
+    #[serde(default = "default_stuck_hours")]
+    pub older_than_hours: f64,
+}
+
+fn default_stuck_hours() -> f64 {
+    6.0
+}
+
+#[derive(
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct RadarrStuckQueueOutput {
+    /// Queue items stuck past the threshold.
+    pub stuck: Vec<StuckQueueItem>,
+}
+
+/// **Detection.** Queue items older than the threshold whose tracked download
+/// is in warning/error or stuck in importPending/importBlocked/failedPending.
+/// Read-only.
+#[orca_tool(domain = "radarr", verb = "stuck_queue")]
+async fn radarr_stuck_queue(
+    args: RadarrStuckQueueArgs,
+    _ctx: &ToolCtx,
+) -> Result<RadarrStuckQueueOutput> {
+    let stuck =
+        arr_base::ops::stuck_queue(&make_client(&args.endpoint).await?, args.older_than_hours)
+            .await?;
+    Ok(RadarrStuckQueueOutput { stuck })
 }
 
 // TODO: radarr.add_movie — Radarr-specific media tool over `/api/v3/movie`.
