@@ -13,6 +13,8 @@
 //! - `sonarr.usenet_preference` — **detection.** Delay profiles that prefer
 //!   usenet without a torrent delay, so torrents are still grabbed first.
 //! - `sonarr.system_status` — app name / version / instance.
+//! - `sonarr.stuck_queue` — **detection.** Queue items stuck with warnings or
+//!   pending import past a threshold.
 //!
 //! Sonarr speaks `/api/v3` with a `/series` media model; the [`Flavor`] is
 //! fixed to `Sonarr`, so the endpoint row carries no `flavor` column.
@@ -23,7 +25,7 @@
 use plugin_toolkit::prelude::*;
 
 use arr_base::{
-    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, SystemStatus,
+    Client, Config, Flavor, HealthIssue, Indexer, IndexerTestResult, StuckQueueItem, SystemStatus,
     UsenetPreferenceGap,
 };
 
@@ -253,6 +255,53 @@ async fn sonarr_system_status(
     _ctx: &ToolCtx,
 ) -> Result<SystemStatus> {
     Ok(arr_base::ops::system_status(&make_client(&args.endpoint).await?).await?)
+}
+
+#[derive(
+    plugin_toolkit::clap::Args,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct SonarrStuckQueueArgs {
+    /// Registered endpoint name.
+    pub endpoint: String,
+    /// Hours since an item was added before it counts as stuck.
+    #[arg(long, default_value_t = 6.0)]
+    #[serde(default = "default_stuck_hours")]
+    pub older_than_hours: f64,
+}
+
+fn default_stuck_hours() -> f64 {
+    6.0
+}
+
+#[derive(
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+pub struct SonarrStuckQueueOutput {
+    /// Queue items stuck past the threshold.
+    pub stuck: Vec<StuckQueueItem>,
+}
+
+/// **Detection.** Queue items older than the threshold whose tracked download
+/// is in warning/error or stuck in importPending/importBlocked/failedPending.
+/// Read-only.
+#[orca_tool(domain = "sonarr", verb = "stuck_queue")]
+async fn sonarr_stuck_queue(
+    args: SonarrStuckQueueArgs,
+    _ctx: &ToolCtx,
+) -> Result<SonarrStuckQueueOutput> {
+    let stuck =
+        arr_base::ops::stuck_queue(&make_client(&args.endpoint).await?, args.older_than_hours)
+            .await?;
+    Ok(SonarrStuckQueueOutput { stuck })
 }
 
 // TODO: sonarr.add_series — Sonarr-specific media tool over `/api/v3/series`.

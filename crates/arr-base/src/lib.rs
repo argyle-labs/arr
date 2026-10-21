@@ -224,6 +224,134 @@ pub fn usenet_preference_gaps(profiles: &[DelayProfile]) -> Vec<UsenetPreference
         .collect()
 }
 
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+#[serde(rename_all = "camelCase")]
+pub struct QueueStatusMessage {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub messages: Vec<String>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+#[serde(rename_all = "camelCase")]
+pub struct QueueRecord {
+    #[serde(default)]
+    pub id: Option<i64>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub tracked_download_status: Option<String>,
+    #[serde(default)]
+    pub tracked_download_state: Option<String>,
+    #[serde(default)]
+    pub status_messages: Vec<QueueStatusMessage>,
+    #[serde(default)]
+    pub error_message: Option<String>,
+    #[serde(default)]
+    pub added: Option<String>,
+    #[serde(default)]
+    pub download_client: Option<String>,
+    #[serde(default)]
+    pub protocol: Option<String>,
+    #[serde(default)]
+    pub size: Option<f64>,
+    #[serde(default)]
+    pub sizeleft: Option<f64>,
+}
+
+#[derive(Debug, plugin_toolkit::serde::Deserialize)]
+#[serde(crate = "plugin_toolkit::serde")]
+struct QueuePage {
+    #[serde(default)]
+    records: Vec<QueueRecord>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    plugin_toolkit::serde::Serialize,
+    plugin_toolkit::serde::Deserialize,
+    plugin_toolkit::schemars::JsonSchema,
+)]
+#[serde(crate = "plugin_toolkit::serde")]
+#[schemars(crate = "plugin_toolkit::schemars")]
+#[serde(rename_all = "camelCase")]
+pub struct StuckQueueItem {
+    pub record: QueueRecord,
+    pub age_hours: f64,
+    pub reasons: Vec<String>,
+}
+
+const STUCK_STATES: [&str; 3] = ["importPending", "importBlocked", "failedPending"];
+
+pub fn stuck_queue_items(
+    records: &[QueueRecord],
+    now_secs: i64,
+    older_than_hours: f64,
+) -> Vec<StuckQueueItem> {
+    records
+        .iter()
+        .filter_map(|r| {
+            let added = plugin_toolkit::time::Timestamp::parse_rfc3339(r.added.as_deref()?).ok()?;
+            let age_hours = (now_secs - added.unix_seconds()) as f64 / 3600.0;
+            if age_hours < older_than_hours {
+                return None;
+            }
+            let mut reasons = Vec::new();
+            if let Some(status) = r
+                .tracked_download_status
+                .as_deref()
+                .filter(|s| s.eq_ignore_ascii_case("warning") || s.eq_ignore_ascii_case("error"))
+            {
+                reasons.push(format!("trackedDownloadStatus={status}"));
+            }
+            if let Some(state) = r
+                .tracked_download_state
+                .as_deref()
+                .filter(|s| STUCK_STATES.iter().any(|t| t.eq_ignore_ascii_case(s)))
+            {
+                reasons.push(format!("trackedDownloadState={state}"));
+            }
+            if reasons.is_empty() {
+                return None;
+            }
+            reasons.extend(
+                r.status_messages
+                    .iter()
+                    .flat_map(|m| m.messages.iter().cloned())
+                    .chain(r.error_message.clone()),
+            );
+            Some(StuckQueueItem {
+                record: r.clone(),
+                age_hours,
+                reasons,
+            })
+        })
+        .collect()
+}
+
 /// One configured indexer from `/api/{v}/indexer`.
 #[derive(
     Debug,
@@ -580,6 +708,13 @@ impl Client {
         resp.json::<Vec<DelayProfile>>().map_err(ArrError::Http)
     }
 
+    pub async fn queue(&self) -> Result<Vec<QueueRecord>, ArrError> {
+        let resp = self
+            .authed_get(&self.api_path("/queue?page=1&pageSize=1000&includeUnknownSeriesItems=true&includeUnknownMovieItems=true"))
+            .await?;
+        Ok(resp.json::<QueuePage>().map_err(ArrError::Http)?.records)
+    }
+
     /// Re-test every indexer — clears stale backoff. **Remediation.**
     pub async fn test_indexers(&self) -> Result<Vec<IndexerTestResult>, ArrError> {
         let resp = self
@@ -617,9 +752,20 @@ impl Client {
 pub mod ops {
     use super::{
         ArrError, CategoryReport, Client, DownloadClient, HealthIssue, Indexer, IndexerStatus,
-        IndexerTestResult, SystemStatus, UnreadInstance, UsenetPreferenceGap, category_claims,
-        category_collisions, usenet_preference_gaps,
+        IndexerTestResult, StuckQueueItem, SystemStatus, UnreadInstance, UsenetPreferenceGap,
+        category_claims, category_collisions, stuck_queue_items, usenet_preference_gaps,
     };
+
+    pub async fn stuck_queue(
+        client: &Client,
+        older_than_hours: f64,
+    ) -> Result<Vec<StuckQueueItem>, ArrError> {
+        Ok(stuck_queue_items(
+            &client.queue().await?,
+            plugin_toolkit::time::now().unix_seconds(),
+            older_than_hours,
+        ))
+    }
 
     /// **Detection.** Health issues currently raised by the server.
     pub async fn health(client: &Client) -> Result<Vec<HealthIssue>, ArrError> {
@@ -717,6 +863,55 @@ mod tests {
     use plugin_toolkit::serde_json;
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn stuck_queue_flags_old_warning_and_import_pending_items() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/queue"))
+            .and(header("x-api-key", "key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "page": 1,
+                "totalRecords": 4,
+                "records": [
+                    {"id": 1, "title": "stalled", "trackedDownloadStatus": "warning",
+                     "trackedDownloadState": "downloading", "added": "2026-10-20T00:00:00Z",
+                     "statusMessages": [{"title": "x", "messages": ["The download is stalled with no connections"]}],
+                     "size": 0, "sizeleft": 10},
+                    {"id": 2, "title": "pending", "trackedDownloadStatus": "ok",
+                     "trackedDownloadState": "importPending", "added": "2026-10-19T00:00:00Z"},
+                    {"id": 3, "title": "fresh", "trackedDownloadStatus": "warning",
+                     "added": "2026-10-20T11:00:00Z"},
+                    {"id": 4, "title": "healthy", "trackedDownloadStatus": "ok",
+                     "trackedDownloadState": "downloading", "added": "2026-10-01T00:00:00Z"}
+                ]
+            })))
+            .mount(&server)
+            .await;
+        let records = Client::new(Config::new(server.uri(), "key", Flavor::Sonarr))
+            .queue()
+            .await
+            .unwrap();
+        assert_eq!(records.len(), 4);
+        let now = plugin_toolkit::time::Timestamp::parse_rfc3339("2026-10-20T12:00:00Z")
+            .unwrap()
+            .unix_seconds();
+        let stuck = stuck_queue_items(&records, now, 6.0);
+        let ids: Vec<i64> = stuck.iter().filter_map(|s| s.record.id).collect();
+        assert_eq!(ids, vec![1, 2]);
+        assert_eq!(stuck[0].age_hours, 12.0);
+        assert_eq!(
+            stuck[0].reasons,
+            vec![
+                "trackedDownloadStatus=warning".to_string(),
+                "The download is stalled with no connections".to_string()
+            ]
+        );
+        assert_eq!(
+            stuck[1].reasons,
+            vec!["trackedDownloadState=importPending".to_string()]
+        );
+    }
 
     #[test]
     fn flavor_api_versions() {
