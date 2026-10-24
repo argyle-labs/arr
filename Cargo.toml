@@ -32,8 +32,8 @@ plugins = ["lidarr", "prowlarr", "radarr", "readarr", "sonarr"]
 # (`#[orca_tool]`, `endpoint_resource!`, dispatch) resolve through
 # `::plugin_toolkit::*`; the progenitor-generated clients' bare serde/reqwest
 # paths are rewritten to `::plugin_toolkit::*` by the build-time codegen.
-plugin-toolkit = { version = "=0.2.1-rc.39", registry = "gitea", package = "orca-plugin-toolkit", default-features = false, features = ["tools", "db", "openapi", "http"] }
-plugin-toolkit-build = { version = "=0.2.1-rc.39", registry = "gitea", package = "orca-plugin-toolkit-build" }
+plugin-toolkit = { version = ">=0.2.1-rc.47", registry = "gitea", package = "orca-plugin-toolkit", default-features = false, features = ["tools", "db", "openapi", "http"] }
+plugin-toolkit-build = { version = ">=0.2.1-rc.47", registry = "gitea", package = "orca-plugin-toolkit-build" }
 # The shared Servarr base (transport + typed clients).
 arr-base = { path = "crates/arr-base" }
 # Dev-only (tests): wiremock/tokio/rustls drive the HTTP + auth transport tests.
