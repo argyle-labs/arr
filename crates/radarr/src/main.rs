@@ -11,5 +11,6 @@ fn main() -> plugin_toolkit::anyhow::Result<()> {
     Plugin::named("radarr")
         .version(env!("CARGO_PKG_VERSION"))
         .tools(["radarr."])
+        .service(arr_base::ArrServiceBackend::new("radarr", 7878))
         .serve()
 }

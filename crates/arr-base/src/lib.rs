@@ -27,6 +27,10 @@
 pub mod auth;
 
 use plugin_toolkit::http::{Client as HttpClient, HttpError};
+use plugin_toolkit::service::{
+    BoxFuture, Routes, Runtime, ServiceBackend, ServiceCapability, ServiceError, ServiceStatus,
+    WorkloadSpec,
+};
 
 // Every derive site below is fully qualified at `plugin_toolkit::{serde,
 // schemars,thiserror}` with matching `#[serde(crate=...)]` / `#[schemars(crate=
@@ -90,6 +94,80 @@ impl Config {
             api_key: api_key.into(),
             flavor,
         }
+    }
+}
+
+/// Shared `ServiceBackend` for every *arr flavor — deploy/backup/restore of the
+/// *arr instance itself. Distinct from [`Client`], which talks to the running
+/// app's own API. Every flavor mounts the identical shape (`/config` is the
+/// only persistent state; downloads/media are operational mounts), so one impl
+/// parameterized by provider name + default port covers all of them.
+#[derive(Debug, Clone)]
+pub struct ArrServiceBackend {
+    provider: &'static str,
+    default_port: u16,
+}
+
+impl ArrServiceBackend {
+    pub fn new(provider: &'static str, default_port: u16) -> Self {
+        Self {
+            provider,
+            default_port,
+        }
+    }
+}
+
+impl ServiceBackend for ArrServiceBackend {
+    fn provider(&self) -> &str {
+        self.provider
+    }
+
+    fn runtimes(&self) -> Vec<Runtime> {
+        vec![Runtime::Docker, Runtime::Podman, Runtime::Lxc, Runtime::Vm]
+    }
+
+    fn capabilities(&self) -> Vec<ServiceCapability> {
+        vec![
+            ServiceCapability::Deploy,
+            ServiceCapability::Backup,
+            ServiceCapability::Restore,
+            ServiceCapability::Configure,
+            ServiceCapability::Status,
+        ]
+    }
+
+    fn default_port(&self) -> u16 {
+        self.default_port
+    }
+
+    fn data_paths(&self) -> Vec<String> {
+        vec!["/config".to_string()]
+    }
+
+    fn workload_spec<'a>(
+        &'a self,
+        _runtime: Runtime,
+        _instance: &'a str,
+        _routes: &'a Routes,
+    ) -> BoxFuture<'a, Result<WorkloadSpec, ServiceError>> {
+        Box::pin(async move { Err(ServiceError::unimplemented("workload_spec")) })
+    }
+
+    fn configure<'a>(
+        &'a self,
+        _instance: &'a str,
+        _routes: &'a Routes,
+        _config: &'a str,
+    ) -> BoxFuture<'a, Result<(), ServiceError>> {
+        Box::pin(async move { Err(ServiceError::unimplemented("configure")) })
+    }
+
+    fn status<'a>(
+        &'a self,
+        _instance: &'a str,
+        _routes: &'a Routes,
+    ) -> BoxFuture<'a, Result<ServiceStatus, ServiceError>> {
+        Box::pin(async move { Err(ServiceError::unimplemented("status")) })
     }
 }
 
@@ -911,6 +989,14 @@ mod tests {
             stuck[1].reasons,
             vec!["trackedDownloadState=importPending".to_string()]
         );
+    }
+
+    #[test]
+    fn service_backend_declares_config_only() {
+        let b = ArrServiceBackend::new("sonarr", 8989);
+        assert_eq!(b.provider(), "sonarr");
+        assert_eq!(b.default_port(), 8989);
+        assert_eq!(b.data_paths(), vec!["/config".to_string()]);
     }
 
     #[test]
