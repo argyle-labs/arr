@@ -11,5 +11,6 @@ fn main() -> plugin_toolkit::anyhow::Result<()> {
     Plugin::named("readarr")
         .version(env!("CARGO_PKG_VERSION"))
         .tools(["readarr."])
+        .service(arr_base::ArrServiceBackend::new("readarr", 8787))
         .serve()
 }

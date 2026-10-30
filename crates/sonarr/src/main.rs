@@ -11,5 +11,6 @@ fn main() -> plugin_toolkit::anyhow::Result<()> {
     Plugin::named("sonarr")
         .version(env!("CARGO_PKG_VERSION"))
         .tools(["sonarr."])
+        .service(arr_base::ArrServiceBackend::new("sonarr", 8989))
         .serve()
 }

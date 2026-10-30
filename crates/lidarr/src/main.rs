@@ -11,5 +11,6 @@ fn main() -> plugin_toolkit::anyhow::Result<()> {
     Plugin::named("lidarr")
         .version(env!("CARGO_PKG_VERSION"))
         .tools(["lidarr."])
+        .service(arr_base::ArrServiceBackend::new("lidarr", 8686))
         .serve()
 }

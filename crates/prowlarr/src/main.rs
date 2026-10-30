@@ -11,5 +11,6 @@ fn main() -> plugin_toolkit::anyhow::Result<()> {
     Plugin::named("prowlarr")
         .version(env!("CARGO_PKG_VERSION"))
         .tools(["prowlarr."])
+        .service(arr_base::ArrServiceBackend::new("prowlarr", 9696))
         .serve()
 }
